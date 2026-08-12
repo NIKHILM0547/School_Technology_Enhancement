@@ -27,8 +27,10 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
         if (!userRepository.existsByEmail("admin@school.test")) {
-            userRepository.save(new User("School Admin", "admin@school.test",
-                    passwordEncoder.encode("admin123"), Role.admin));
+            User admin = new User("School Admin", "admin@school.test",
+                    passwordEncoder.encode("admin123"), Role.admin);
+            admin.setMobile("9123456789");
+            userRepository.save(admin);
             System.out.println("Seeded demo admin login: admin@school.test / admin123");
         }
 
