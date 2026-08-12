@@ -1,0 +1,34 @@
+# ── Build output ───────────────────────────────
+target/
+*.class
+*.jar
+!mvnw
+!mvnw.cmd
+
+# ── Maven wrapper (keep mvnw scripts, ignore jar if re-downloaded) ──
+.mvn/wrapper/maven-wrapper.jar
+
+# ── Runtime data (uploaded notes, local DB artifacts) ──
+data/
+
+# ── Logs ───────────────────────────────────────
+*.log
+logs/
+
+# ── IDE / editor ───────────────────────────────
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.code-workspace
+
+# ── OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Local config / secrets ─────────────────────
+.env
+application-local.properties
+application-local.yml

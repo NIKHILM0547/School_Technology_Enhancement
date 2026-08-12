@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My Fees')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('fees')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">My fees</div>
+                <h1>Fees</h1>
+                <div class="text-muted" th:text="'Class ' + ${student.classDisplay} + ' | Admission No: ' + ${student.admissionNo}">Class</div>
+            </div>
+            <div class="page-actions">
+                <span class="date-chip" th:text="${#temporals.format(#temporals.createNow(), 'EEEE, d MMMM yyyy')}">Today</span>
+            </div>
+        </header>
+
+        <!-- ── Stat cards ── -->
+        <div class="stat-grid">
+            <div class="stat-card stat-collected">
+                <div class="stat-icon">&#8377;</div>
+                <div class="stat-label">Total paid</div>
+                <div class="stat-value" th:text="'₹' + ${#numbers.formatDecimal(totalPaid, 0, 'COMMA', 0, 'POINT')}">₹0</div>
+                <div class="stat-sub">All payments so far</div>
+            </div>
+            <div class="stat-card stat-outstanding">
+                <div class="stat-icon">&#9888;</div>
+                <div class="stat-label">Remaining to pay</div>
+                <div class="stat-value" th:text="'₹' + ${#numbers.formatDecimal(remaining, 0, 'COMMA', 0, 'POINT')}">₹0</div>
+                <div class="stat-sub">Outstanding balance</div>
+            </div>
+            <div class="stat-card stat-fees">
+                <div class="stat-icon">&#9745;</div>
+                <div class="stat-label">Fee records</div>
+                <div class="stat-value" th:text="${#lists.size(myFees)}">0</div>
+                <div class="stat-sub">Terms on your account</div>
+            </div>
+        </div>
+
+        <!-- ── Fees to pay + pay option ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Current fees to pay</h2>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Term</th>
+                            <th>Amount due</th>
+                            <th>Paid so far</th>
+                            <th>Outstanding</th>
+                            <th>Due date</th>
+                            <th>Status</th>
+                            <th>Pay now</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="f : ${myFees}">
+                            <td class="font-medium" th:text="${f.term}">Term 1 2026</td>
+                            <td th:text="'₹' + ${#numbers.formatDecimal(f.amountDue, 0, 'COMMA', 0, 'POINT')}">₹0</td>
+                            <td th:text="'₹' + ${#numbers.formatDecimal(f.amountPaid, 0, 'COMMA', 0, 'POINT')}">₹0</td>
+                            <td th:text="'₹' + ${#numbers.formatDecimal(f.outstanding, 0, 'COMMA', 0, 'POINT')}">₹0</td>
+                            <td th:text="${f.dueDate == null ? '—' : #temporals.format(f.dueDate, 'dd MMM yyyy')}">—</td>
+                            <td><span class="fee-status" th:classappend="'fee-' + ${f.status}" th:text="${f.status}"></span></td>
+                            <td>
+                                <form th:action="@{/fees/{id}/pay(id=${f.id})}" method="post" class="pay-row"
+                                      th:if="${f.outstanding > 0}">
+                                    <input type="number" name="amount" placeholder="Amount" step="0.01" min="0.01"
+                                           th:attr="max=${f.outstanding}" required/>
+                                    <button class="btn btn-success btn-sm" type="submit">Pay</button>
+                                </form>
+                                <span class="text-muted" th:if="${f.outstanding <= 0}">—</span>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(myFees)}">
+                            <td colspan="7" class="empty-cell">No fee records on your account yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── Payment history ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Payment history</h2>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Term</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="p : ${payments}">
+                            <td th:text="${#temporals.format(p.paidAt, 'dd MMM yyyy, hh:mm a')}">Date</td>
+                            <td th:text="${p.fee.term}">Term</td>
+                            <td class="font-medium" th:text="'₹' + ${#numbers.formatDecimal(p.amount, 0, 'COMMA', 0, 'POINT')}">₹0</td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(payments)}">
+                            <td colspan="3" class="empty-cell">No payments made yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

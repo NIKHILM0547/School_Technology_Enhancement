@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Reviews')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('reviews')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Discussion board</div>
+                <h1>Reviews &amp; Discussion</h1>
+            </div>
+        </header>
+
+        <!-- Post form (students only) -->
+        <div class="card" th:if="${isStudent}">
+            <div class="card-header">
+                <h2>Post a review or difficulty</h2>
+            </div>
+            <form th:action="@{/reviews/new}" method="post" th:object="${newReview}">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="title">Topic</label>
+                        <input id="title" type="text" th:field="*{title}" required placeholder="e.g. Difficulty with a subject, feedback, suggestion..."/>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="content">Details</label>
+                        <textarea id="content" th:field="*{content}" rows="4" required
+                                  placeholder="Describe your review, problem or difficulty in detail..."></textarea>
+                    </div>
+                </div>
+                <div class="card-note" th:if="${myStudent != null}">
+                    Posting as <strong th:text="${myStudent.fullName}"></strong>
+                    (<span th:text="${myStudent.admissionNo}"></span>)
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:12px;">Post</button>
+            </form>
+        </div>
+        <div class="card" th:if="${not isStudent}">
+            <div class="card-note" style="margin:0;">
+                Students can post reviews and difficulties here. View the latest posts below.
+            </div>
+        </div>
+
+        <!-- Review list -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Recent posts</h2>
+                <span class="text-muted" th:if="${isStudent and myStudent != null}"
+                      th:text="'Class ' + ${myStudent.className} + (${myStudent.section != null and !#strings.isEmpty(myStudent.section)} ? ('-' + ${myStudent.section}) : '') + ' only'">Class only</span>
+            </div>
+            <div class="review-list">
+                <article class="review-item" th:each="r : ${reviews}">
+                    <div class="review-head">
+                        <div class="review-avatar" th:text="${#strings.substring(r.student.fullName, 0, 1)}">A</div>
+                        <div class="review-meta">
+                            <div class="review-author">
+                                <span class="font-medium" th:text="${r.student.fullName}"></span>
+                                <span class="badge" th:text="${r.student.admissionNo}"></span>
+                            </div>
+                            <div class="review-time" th:text="${#temporals.format(r.createdAt, 'dd MMM yyyy, hh:mm a')}"></div>
+                        </div>
+                    </div>
+                    <h3 class="review-title" th:text="${r.title}"></h3>
+                    <p class="review-content" th:text="${r.content}"></p>
+                </article>
+                <p class="empty-note" th:if="${#lists.isEmpty(reviews)}">No posts yet. Be the first to share a review.</p>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

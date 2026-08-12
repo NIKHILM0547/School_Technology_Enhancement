@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Student roll call')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('attendance')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Roll call</div>
+                <h1>Student attendance</h1>
+            </div>
+            <div class="page-actions">
+                <form method="get" th:action="@{/attendance/rollcall}">
+                    <input type="date" name="date" th:value="${selectedDate}" onchange="this.form.submit()"/>
+                </form>
+            </div>
+        </header>
+
+        <div class="flash flash-success" th:if="${param.saved}" style="margin-bottom:16px;">
+            Attendance saved for <strong th:text="${selectedDate}"></strong>.
+        </div>
+
+        <form th:action="@{/attendance/save}" method="post">
+            <input type="hidden" name="date" th:value="${selectedDate}"/>
+            <div class="card">
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Status</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${students}">
+                            <td class="font-medium" th:text="${s.fullName}"></td>
+                            <td th:text="${s.className} + (${s.section} != null ? '-' + ${s.section} : '')"></td>
+                            <td>
+                                <input type="hidden" name="studentIds" th:value="${s.id}"/>
+                                <div class="pill-group">
+                                    <div th:each="st : ${statuses}"
+                                         th:class="'status-pill' + (${currentMarks.get(s.id) == st} ? ' selected pill-' + ${st} : '')"
+                                         th:text="${st}"
+                                         onclick="selectPill(this, 'status_'+${s.id})"></div>
+                                </div>
+                                <input type="hidden" th:id="'status_'+${s.id}" name="statuses"
+                                       th:value="${currentMarks.get(s.id)}"/>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(students)}">
+                            <td colspan="3" class="empty-cell">Add students first to take attendance.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="btn btn-primary" type="submit" th:if="${not #lists.isEmpty(students)}" style="margin-top:4px;">
+                Save attendance
+            </button>
+        </form>
+        <p class="text-muted" style="margin-top:12px;">
+            <a th:href="@{/attendance}">&larr; Back to attendance list</a>
+        </p>
+    </main>
+</div>
+
+<script>
+function selectPill(el, hiddenId) {
+    var parent = el.parentElement;
+    var pills = parent.querySelectorAll('.status-pill');
+    pills.forEach(function(p) { p.className = 'status-pill'; });
+    el.className = 'status-pill selected pill-' + el.textContent.trim();
+    document.getElementById(hiddenId).value = el.textContent.trim();
+}
+</script>
+</body>
+</html>

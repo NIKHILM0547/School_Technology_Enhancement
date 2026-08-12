@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My Class')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('dashboard')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Class teacher view</div>
+                <h1 th:text="'Hi, ' + ${teacher.name} + '!'">Hi!</h1>
+                <div class="text-muted" th:text="'Class teacher of: ' + ${className}">Class teacher of</div>
+            </div>
+            <div class="page-actions">
+                <span class="date-chip" th:text="${#temporals.format(today, 'EEEE, d MMMM yyyy')}">Today</span>
+            </div>
+        </header>
+
+        <!-- ── Stat cards ── -->
+        <div class="stat-grid">
+            <a th:href="@{/attendance}" class="stat-card stat-students">
+                <div class="stat-icon">&#9783;</div>
+                <div class="stat-label">Students in class</div>
+                <div class="stat-value" th:text="${totalStudents}">0</div>
+                <div class="stat-sub" th:text="'Class ' + ${className}">Class</div>
+            </a>
+            <div class="stat-card stat-attendance">
+                <div class="stat-icon">&#10003;</div>
+                <div class="stat-label">Attendance %</div>
+                <div class="stat-value" th:text="${attendanceRate} + '%'">0%</div>
+                <div class="stat-sub" th:text="${markedToday} + ' marked today'">0</div>
+            </div>
+            <div class="stat-card stat-present">
+                <div class="stat-icon">&#10003;</div>
+                <div class="stat-label">Present today</div>
+                <div class="stat-value" th:text="${presentToday}">0</div>
+                <div class="stat-sub" th:text="${lateToday} + ' late / ' + ${excusedToday} + ' excused'">0</div>
+            </div>
+            <div class="stat-card stat-absent">
+                <div class="stat-icon">&#10007;</div>
+                <div class="stat-label">Absent today</div>
+                <div class="stat-value" th:text="${absentToday}">0</div>
+                <div class="stat-sub">Of your class</div>
+            </div>
+        </div>
+
+        <!-- ── Attendance snapshot + quick actions ── -->
+        <div class="dash-row">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Today's attendance</h2>
+                    <a class="card-link" th:href="@{/attendance/rollcall}">Mark attendance &rarr;</a>
+                </div>
+                <div class="att-legend">
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-present"></span>Present</span>
+                        <span class="legend-value" th:text="${presentToday}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-absent"></span>Absent</span>
+                        <span class="legend-value" th:text="${absentToday}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
+                        <span class="legend-value" th:text="${lateToday}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
+                        <span class="legend-value" th:text="${excusedToday}">0</span>
+                    </div>
+                </div>
+                <div class="progress-label">
+                    <span>Attendance rate</span>
+                    <span th:text="${attendanceRate} + '%'">0%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" th:style="'width:' + ${attendanceRate} + '%'"></div>
+                </div>
+                <div class="card-note" th:if="${markedToday == 0}">
+                    No attendance marked for your class today yet. Use the roll call above.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Quick actions</h2>
+                </div>
+                <div class="quick-list">
+                    <a class="quick-item" th:href="@{/attendance/rollcall}">
+                        <span class="quick-icon">&#10003;</span>
+                        <div>
+                            <div class="font-medium">Student roll call</div>
+                            <div class="text-muted">Mark today's attendance</div>
+                        </div>
+                    </a>
+                    <a class="quick-item" th:href="@{/attendance}">
+                        <span class="quick-icon">&#9745;</span>
+                        <div>
+                            <div class="font-medium">View register</div>
+                            <div class="text-muted">See all days &amp; filters</div>
+                        </div>
+                    </a>
+                    <a class="quick-item" th:href="@{/reviews}">
+                        <span class="quick-icon">&#9998;</span>
+                        <div>
+                            <div class="font-medium">Reviews &amp; discussion</div>
+                            <div class="text-muted">See what students say</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Absent today ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Absent today</h2>
+            </div>
+            <ul class="dash-list">
+                <li th:each="n : ${absentNames}">
+                    <span class="font-medium" th:text="${n}"></span>
+                    <span class="fee-status fee-absent">absent</span>
+                </li>
+                <li th:if="${#lists.isEmpty(absentNames)}">
+                    <span class="empty-note">No absences recorded for your class today.</span>
+                </li>
+            </ul>
+        </div>
+    </main>
+</div>
+</body>
+</html>

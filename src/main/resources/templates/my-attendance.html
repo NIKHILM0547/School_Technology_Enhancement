@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My Attendance')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('attendance')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">My attendance</div>
+                <h1>Attendance</h1>
+                <div class="text-muted" th:text="'Class ' + ${student.classDisplay} + ' | Admission No: ' + ${student.admissionNo}">Class</div>
+            </div>
+            <div class="page-actions">
+                <span class="date-chip" th:text="${#temporals.format(#temporals.createNow(), 'EEEE, d MMMM yyyy')}">Today</span>
+            </div>
+        </header>
+
+        <!-- ── Stat cards ── -->
+        <div class="stat-grid">
+            <div class="stat-card stat-attendance">
+                <div class="stat-icon">&#10003;</div>
+                <div class="stat-label">Attendance rate</div>
+                <div class="stat-value" th:text="${attendanceRate} + '%'">0%</div>
+                <div class="stat-sub" th:text="${#lists.size(records)} + ' marked day(s)'">0</div>
+            </div>
+            <div class="stat-card stat-present">
+                <div class="stat-icon">&#10003;</div>
+                <div class="stat-label">Present</div>
+                <div class="stat-value" th:text="${presentCount}">0</div>
+                <div class="stat-sub">Days present</div>
+            </div>
+            <div class="stat-card stat-absent">
+                <div class="stat-icon">&#10007;</div>
+                <div class="stat-label">Absent</div>
+                <div class="stat-value" th:text="${absentCount}">0</div>
+                <div class="stat-sub" th:text="${lateCount + excusedCount} + ' late / excused'">0</div>
+            </div>
+        </div>
+
+        <!-- ── Breakdown ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Summary</h2>
+            </div>
+            <div class="att-legend">
+                <div class="legend-item">
+                    <span class="legend-label"><span class="legend-dot dot-present"></span>Present</span>
+                    <span class="legend-value" th:text="${presentCount}">0</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-label"><span class="legend-dot dot-absent"></span>Absent</span>
+                    <span class="legend-value" th:text="${absentCount}">0</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
+                    <span class="legend-value" th:text="${lateCount}">0</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
+                    <span class="legend-value" th:text="${excusedCount}">0</span>
+                </div>
+            </div>
+            <div class="progress-label">
+                <span>Attendance rate</span>
+                <span th:text="${attendanceRate} + '%'">0%</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" th:style="'width:' + ${attendanceRate} + '%'"></div>
+            </div>
+        </div>
+
+        <!-- ── Day-by-day record ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Day-by-day record</h2>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="a : ${records}">
+                            <td th:text="${#temporals.format(a.date, 'EEEE, dd MMM yyyy')}">Date</td>
+                            <td><span class="fee-status" th:classappend="'fee-' + ${a.status}" th:text="${a.status}">status</span></td>
+                            <td th:text="${a.remarks == null or #strings.isEmpty(a.remarks) ? '—' : a.remarks}">—</td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(records)}">
+                            <td colspan="3" class="empty-cell">No attendance marked yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

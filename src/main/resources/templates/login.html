@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Sign in')}"></head>
+<body>
+<div class="auth-screen">
+    <div class="auth-card">
+        <div class="auth-mark">Ed</div>
+        <h1>EduAdmin</h1>
+        <p class="auth-sub">Sign in to manage your school</p>
+
+        <form th:action="@{/login}" method="post">
+            <label for="username">Email</label>
+            <input id="username" name="username" type="email" required autofocus placeholder="you@school.edu"/>
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"/>
+
+            <div class="form-error" th:if="${param.error}">Invalid email or password.</div>
+            <div class="flash flash-success" th:if="${param.logout}">You've been signed out.</div>
+
+            <button class="btn btn-primary" type="submit">Sign in</button>
+        </form>
+
+        <div class="auth-hint">
+            <strong>Demo accounts</strong><br/>
+            <code>admin@school.test</code> / <code>admin123</code> (Admin)<br/>
+            <code>teacher@school.test</code> / <code>teacher123</code> (Teacher)<br/>
+            <code>student@school.test</code> / <code>student123</code> (Student)
+        </div>
+    </div>
+</div>
+</body>
+</html>

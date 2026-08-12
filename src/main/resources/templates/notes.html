@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Notes')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('notes')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Study material</div>
+                <h1>Notes &amp; Material</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="showUploadModal()" th:unless="${isStudent}">+ Upload note</button>
+            </div>
+        </header>
+
+        <div th:if="${errorMessages != null and !#lists.isEmpty(errorMessages)}" class="alert alert-danger">
+            <div th:each="e : ${errorMessages}" th:text="${e}"></div>
+        </div>
+
+        <!-- Upload form (teachers & admins) -->
+        <div class="card" th:unless="${isStudent}" id="uploadCard" style="display:none;">
+            <div class="card-header">
+                <h2>Upload new note</h2>
+            </div>
+            <form th:action="@{/notes/upload}" method="post" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="title">Title</label>
+                        <input id="title" name="title" type="text" required placeholder="e.g. Chapter 5 — Fractions"/>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="description">Description <span class="text-muted">(optional)</span></label>
+                        <textarea id="description" name="description" rows="2"
+                                  placeholder="What is this material about?"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Available to classes</label>
+                        <div class="class-checkbox-grid">
+                            <label th:each="c : ${classes}" class="class-checkbox">
+                                <input type="checkbox" name="targetClasses" th:value="${c}"/>
+                                <span th:text="${c}"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="file">File <span class="text-muted">(video, image or PDF)</span></label>
+                        <input id="file" name="file" type="file" required
+                               accept="video/*,image/*,.pdf"/>
+                    </div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:12px;">Upload</button>
+                <button type="button" class="btn btn-ghost" style="margin-top:12px;" onclick="hideUploadModal()">Cancel</button>
+            </form>
+        </div>
+
+        <!-- Notes list -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Shared material</h2>
+                <span class="text-muted" th:if="${isStudent}">Only notes for your class are shown</span>
+            </div>
+            <div class="review-list">
+                <article class="review-item" th:each="n : ${notes}">
+                    <div class="review-head">
+                        <div class="review-avatar" th:text="${#strings.substring(n.title, 0, 1)}">N</div>
+                        <div class="review-meta">
+                            <div class="review-author">
+                                <span class="font-medium" th:text="${n.title}"></span>
+                                <span class="badge" th:text="${n.kindLabel}"></span>
+                            </div>
+                            <div class="review-time">
+                                <span th:text="${#temporals.format(n.createdAt, 'dd MMM yyyy, hh:mm a')}"></span>
+                                &middot; <span th:text="${n.uploadedBy.name}"></span>
+                            </div>
+                        </div>
+                        <div style="margin-left:auto;" class="flex gap-2">
+                            <a th:href="@{/notes/{id}/download(id=${n.id})}" class="btn btn-ghost btn-sm">Open</a>
+                            <form th:action="@{/notes/{id}/delete(id=${n.id})}" method="post"
+                                  th:if="${currentUser != null and currentUser.role.name() == 'admin'
+                                          or (currentUser != null and n.uploadedBy.id == currentUser.id)}">
+                                <button class="btn btn-danger btn-sm" type="submit"
+                                        onclick="return confirm('Delete this note?');">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                    <p class="review-content" th:if="${n.description != null and !#strings.isEmpty(n.description)}"
+                       th:text="${n.description}"></p>
+                    <div class="review-time" style="margin-top:8px;">
+                        <span class="badge" th:text="'For: ' + ${n.targetClassesDisplay}"></span>
+                        <span class="text-muted" style="margin-left:8px;"
+                              th:text="${n.originalFileName} + ' (' + ${n.fileSize} + ' bytes)'"></span>
+                    </div>
+                </article>
+                <p class="empty-note" th:if="${#lists.isEmpty(notes)}">
+                    <span th:if="${isStudent}">No notes have been shared with your class yet.</span>
+                    <span th:unless="${isStudent}">No notes uploaded yet. Use the upload button above to share material.</span>
+                </p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+function showUploadModal() {
+    document.getElementById('uploadCard').style.display = 'block';
+}
+
+function hideUploadModal() {
+    document.getElementById('uploadCard').style.display = 'none';
+}
+</script>
+</body>
+</html>

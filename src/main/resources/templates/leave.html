@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Leave')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('leave')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Attendance</div>
+                <h1>Leave requests</h1>
+            </div>
+            <div class="page-actions">
+                <a th:href="@{/attendance}" class="btn btn-ghost">&larr; Attendance</a>
+            </div>
+        </header>
+
+        <div th:if="${param.saved}" class="flash flash-success" style="margin-bottom:16px;">
+            <span th:if="${isAdmin}">Leave request updated.</span>
+            <span th:unless="${isAdmin}">Leave request submitted. An admin will review it.</span>
+        </div>
+
+        <div th:if="${errorMessages != null and !#lists.isEmpty(errorMessages)}" class="alert alert-danger">
+            <div th:each="e : ${errorMessages}" th:text="${e}"></div>
+        </div>
+
+        <!-- Apply form (students & teachers) -->
+        <div class="card" th:unless="${isAdmin}">
+            <div class="card-header">
+                <h2>Apply for leave</h2>
+                <span class="text-muted">Single or multiple days</span>
+            </div>
+            <form th:action="@{/attendance/leave/apply}" method="post">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fromDate">From date</label>
+                        <input id="fromDate" name="fromDate" type="date" required th:value="${fromDate}"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="toDate">To date</label>
+                        <input id="toDate" name="toDate" type="date" required th:value="${toDate}"/>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="reason">Reason</label>
+                        <textarea id="reason" name="reason" rows="3" required
+                                  placeholder="e.g. Sick leave, family function, medical appointment"
+                                  th:text="${reason}"></textarea>
+                    </div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:12px;">Submit request</button>
+            </form>
+        </div>
+
+        <!-- Requests list -->
+        <div class="card">
+            <div class="card-header">
+                <h2 th:text="${isAdmin ? 'All leave requests' : (isStudent ? 'My leave requests' : 'My leave requests')}"></h2>
+                <span class="text-muted" th:if="${isAdmin}">Approve or reject pending requests</span>
+            </div>
+            <div class="filter-bar" th:if="${isAdmin}">
+                <form method="get" th:action="@{/attendance/leave}" class="filter-form">
+                    <div class="filter-group">
+                        <label for="statusFilter">Status</label>
+                        <select id="statusFilter" name="status" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option th:each="st : ${statuses}" th:value="${st}" th:text="${st}"
+                                    th:selected="${st.name() == statusFilter}"></option>
+                        </select>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Filter</button>
+                </form>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th th:if="${isAdmin}">Applicant</th>
+                        <th th:if="${isAdmin}">Class</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th th:if="${isAdmin}">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${requests}">
+                        <td th:if="${isAdmin}" class="font-medium" th:text="${r.applicantDisplayName}"></td>
+                        <td th:if="${isAdmin}" th:text="${r.applicantClassDisplay}"></td>
+                        <td th:text="${r.fromDate}"></td>
+                        <td th:text="${r.toDate}"></td>
+                        <td class="text-muted" th:text="${r.reason}"></td>
+                        <td><span class="fee-status" th:classappend="'fee-' + ${r.status}" th:text="${r.status}"></span></td>
+                        <td th:if="${isAdmin}">
+                            <div th:if="${r.status.name() == 'pending'}">
+                                <form th:action="@{/attendance/leave/{id}/review(id=${r.id})}" method="post"
+                                      class="flex gap-2" style="align-items:center;">
+                                    <input name="action" type="hidden" value="approve"/>
+                                    <input name="reviewComment" type="text" placeholder="Note (optional)"
+                                           style="width:130px;"/>
+                                    <button class="btn btn-success btn-sm" type="submit">Approve</button>
+                                </form>
+                                <form th:action="@{/attendance/leave/{id}/review(id=${r.id})}" method="post"
+                                      class="flex gap-2" style="align-items:center; margin-top:6px;">
+                                    <input name="action" type="hidden" value="reject"/>
+                                    <input name="reviewComment" type="text" placeholder="Note (optional)"
+                                           style="width:130px;"/>
+                                    <button class="btn btn-danger btn-sm" type="submit">Reject</button>
+                                </form>
+                            </div>
+                            <div th:unless="${r.status.name() == 'pending'}" class="text-muted">
+                                <span th:if="${r.reviewComment != null and !#strings.isEmpty(r.reviewComment)}"
+                                      th:text="'By ' + ${r.reviewedBy != null ? r.reviewedBy.name : ''} + ': ' + ${r.reviewComment}"></span>
+                                <span th:unless="${r.reviewComment != null and !#strings.isEmpty(r.reviewComment)}"
+                                      th:text="'Reviewed by ' + ${r.reviewedBy != null ? r.reviewedBy.name : ''}"></span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(requests)}">
+                        <td th:attr="colspan=${isAdmin ? 7 : 5}" class="empty-cell">
+                            <span th:if="${isAdmin}">No leave requests yet.</span>
+                            <span th:unless="${isAdmin}">You haven't applied for any leave yet.</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

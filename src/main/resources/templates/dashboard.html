@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Dashboard')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('dashboard')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Overview</div>
+                <h1>Dashboard</h1>
+            </div>
+            <div class="page-actions">
+                <span class="date-chip" th:text="${#temporals.format(today, 'EEEE, d MMMM yyyy')}">Today</span>
+            </div>
+        </header>
+
+        <!-- ── Stat cards ─────────────────────────── -->
+        <div class="stat-grid">
+            <a th:href="@{/users}" class="stat-card stat-students">
+                <div class="stat-icon">&#9783;</div>
+                <div class="stat-label">Total students</div>
+                <div class="stat-value" th:text="${totalStudents}">0</div>
+                <div class="stat-sub">Student accounts</div>
+            </a>
+            <a th:href="@{/users?role=teacher}" class="stat-card stat-teachers">
+                <div class="stat-icon">&#10070;</div>
+                <div class="stat-label">Teachers</div>
+                <div class="stat-value" th:text="${totalTeachers}">0</div>
+                <div class="stat-sub">Faculty on staff</div>
+            </a>
+            <a th:href="@{/attendance}" class="stat-card stat-present">
+                <div class="stat-icon">&#10003;</div>
+                <div class="stat-label">Present today</div>
+                <div class="stat-value" th:text="${presentStudents}">0</div>
+                <div class="stat-sub" th:text="${attendanceRate} + '% attendance'">0%</div>
+            </a>
+            <a th:href="@{/attendance}" class="stat-card stat-absent">
+                <div class="stat-icon">&#10007;</div>
+                <div class="stat-label">Absent today</div>
+                <div class="stat-value" th:text="${absentStudents}">0</div>
+                <div class="stat-sub" th:text="${lateStudents + excusedStudents} + ' late / excused'">0</div>
+            </a>
+            <a th:href="@{/fees}" class="stat-card stat-collected">
+                <div class="stat-icon">&#8377;</div>
+                <div class="stat-label">Fees collected</div>
+                <div class="stat-value" th:text="'₹' + ${#numbers.formatDecimal(totalCollected, 0, 'COMMA', 0, 'POINT')}">₹0</div>
+                <div class="stat-sub">All time</div>
+            </a>
+            <a th:href="@{/fees}" class="stat-card stat-outstanding">
+                <div class="stat-icon">&#9888;</div>
+                <div class="stat-label">Outstanding</div>
+                <div class="stat-value" th:text="'₹' + ${#numbers.formatDecimal(outstanding, 0, 'COMMA', 0, 'POINT')}">₹0</div>
+                <div class="stat-sub" th:text="${overdueCount} + ' overdue'">0</div>
+            </a>
+        </div>
+
+        <!-- ── Attendance + Quick actions ─────────── -->
+        <div class="dash-row">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Today's attendance</h2>
+                    <a class="card-link" th:href="@{/attendance/rollcall}">Mark attendance &rarr;</a>
+                </div>
+                <div class="att-legend">
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-present"></span>Present</span>
+                        <span class="legend-value" th:text="${presentStudents}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-absent"></span>Absent</span>
+                        <span class="legend-value" th:text="${absentStudents}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
+                        <span class="legend-value" th:text="${lateStudents}">0</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
+                        <span class="legend-value" th:text="${excusedStudents}">0</span>
+                    </div>
+                </div>
+                <div class="progress-label">
+                    <span>Attendance rate</span>
+                    <span th:text="${attendanceRate} + '%'">0%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" th:style="'width:' + ${attendanceRate} + '%'"></div>
+                </div>
+                <div class="card-note">
+                    Staff present today: <strong th:text="${staffPresent}">0</strong>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Quick actions</h2>
+                </div>
+                <div class="quick-list">
+                    <a class="quick-item" th:href="@{/attendance/rollcall}">
+                        <span class="quick-icon">&#10003;</span>
+                        <div>
+                            <div class="font-medium">Student roll call</div>
+                            <div class="text-muted">Mark today's student attendance</div>
+                        </div>
+                    </a>
+                    <a class="quick-item" th:href="@{/attendance/rollcall-staff}">
+                        <span class="quick-icon">&#10070;</span>
+                        <div>
+                            <div class="font-medium">Staff roll call</div>
+                            <div class="text-muted">Mark today's staff attendance</div>
+                        </div>
+                    </a>
+                    <a class="quick-item" th:href="@{/users}">
+                        <span class="quick-icon">&#43;</span>
+                        <div>
+                            <div class="font-medium">Register a user</div>
+                            <div class="text-muted">Add a student or teacher account</div>
+                        </div>
+                    </a>
+                    <a class="quick-item" th:href="@{/fees}">
+                        <span class="quick-icon">&#8377;</span>
+                        <div>
+                            <div class="font-medium">Record a payment</div>
+                            <div class="text-muted">Track a fee collection</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Fee alerts + Absent today ──────────── -->
+        <div class="dash-row">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Pending fees</h2>
+                    <a class="card-link" th:href="@{/fees}">View all &rarr;</a>
+                </div>
+                <ul class="dash-list">
+                    <li th:each="f : ${pendingFees}">
+                        <div>
+                            <div class="font-medium" th:text="${f.student.fullName}"></div>
+                            <div class="text-muted" th:text="${f.term}"></div>
+                        </div>
+                        <div class="dash-right">
+                            <span class="fee-amount" th:text="'₹' + ${#numbers.formatDecimal(f.outstanding, 0, 'COMMA', 0, 'POINT')}">₹0</span>
+                            <span class="fee-status" th:classappend="'fee-' + ${f.status}" th:text="${f.status}"></span>
+                        </div>
+                    </li>
+                    <li th:if="${#lists.isEmpty(pendingFees)}">
+                        <span class="empty-note">No pending fees. All settled.</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>Absent today</h2>
+                    <a class="card-link" th:href="@{/attendance}">View attendance &rarr;</a>
+                </div>
+                <ul class="dash-list">
+                    <li th:each="n : ${absentToday}">
+                        <span class="font-medium" th:text="${n}"></span>
+                        <span class="fee-status fee-absent">absent</span>
+                    </li>
+                    <li th:if="${#lists.isEmpty(absentToday)}">
+                        <span class="empty-note">Everyone is present today.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Users')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('users')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Accounts</div>
+                <h1>Users</h1>
+            </div>
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="showAddModal()">+ Register user</button>
+            </div>
+        </header>
+
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+        <div class="card">
+            <div class="filter-bar">
+                <form method="get" th:action="@{/users}" class="filter-form">
+                    <div class="filter-group">
+                        <label for="roleFilter">Role</label>
+                        <select id="roleFilter" name="role" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option th:each="r : ${filterRoles}" th:value="${r}" th:text="${r}" th:selected="${r == selectedRole}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="classFilter">Class</label>
+                        <select id="classFilter" name="classFilter" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == selectedClass}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="nameFilter">Name</label>
+                        <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Search by name"/>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+                    <a th:href="@{/users}" class="btn btn-ghost btn-sm" th:if="${selectedRole != null or selectedClass != null or !#strings.isEmpty(name)}">Clear</a>
+                </form>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Mobile</th>
+                        <th>Admission No</th>
+                        <th>Role</th>
+                        <th>Subject</th>
+                        <th>Class Teacher</th>
+                        <th>Classes</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="u : ${users}">
+                        <td class="font-medium" th:text="${u.name}"></td>
+                        <td th:text="${u.email}"></td>
+                        <td th:text="${u.mobile ?: '—'}" class="text-muted"></td>
+                        <td th:text="${u.role.name() == 'student' ? (u.admissionNo ?: '—') : '—'}" class="text-muted"></td>
+                        <td><span class="badge" th:text="${u.role}"></span></td>
+                        <td th:text="${u.role.name() == 'teacher' ? u.subject : '—'}" class="text-muted"></td>
+                        <td th:text="${u.role.name() == 'teacher' ? u.classTeacherOf : '—'}" class="text-muted"></td>
+                        <td th:text="${u.assignedClasses ?: '—'}" class="text-muted"></td>
+                        <td>
+                            <div class="flex gap-2" th:if="${u.role.name() != 'admin'}">
+                                <button class="btn btn-ghost btn-sm"
+                                        th:attr="data-id=${u.id},data-name=${u.name},data-email=${u.email},data-mobile=${u.mobile},data-role=${u.role},data-subject=${u.subject},data-classes=${u.assignedClasses},data-cteacher=${u.classTeacherOf}"
+                                        onclick="editUser(this)">Edit</button>
+                                <form th:action="@{/users/{id}/delete(id=${u.id})}" method="post"
+                                      onsubmit="return confirm('Delete this user?');">
+                                    <button class="btn btn-danger btn-sm" type="submit">Remove</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(users)}">
+                        <td colspan="9" class="empty-cell">No users found.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Add User Modal -->
+<div id="userModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal()">
+    <div class="modal-card">
+        <h2>Register new user</h2>
+        <form th:action="@{/users/new}" method="post" th:object="${newUser}" onsubmit="document.getElementById('registerBtn').disabled = true">
+            <div class="modal-scroll">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="name">Full name</label>
+                        <input id="name" th:field="*{name}" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input id="email" type="email" th:field="*{email}" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input id="password" type="password" th:field="*{password}" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="mobile">Mobile</label>
+                        <input id="mobile" type="tel" th:field="*{mobile}" placeholder="e.g. 9876543210" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Role</label>
+                        <select id="role" th:field="*{role}" onchange="toggleTeacherFields()" required>
+                            <option value="">Select role</option>
+                            <option th:each="r : ${availableRoles}" th:value="${r}" th:text="${r}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width subject-field" style="display:none;">
+                        <label>Class Teacher of</label>
+                        <select id="classTeacherOf" name="classTeacherOf" th:value="*{classTeacherOf}">
+                            <option value="">Select class</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width subject-field" style="display:none;">
+                        <label>Teaching assignments</label>
+                        <div class="teach-pair-row">
+                            <select id="teachClass" class="teach-select">
+                                <option value="">Class</option>
+                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                            <select id="teachSubject" class="teach-select">
+                                <option value="">Subject</option>
+                                <option th:each="s : ${subjects}" th:value="${s}" th:text="${s}"></option>
+                            </select>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="addTeachPair()">Add</button>
+                        </div>
+                        <ul id="teachList" class="teach-list"></ul>
+                        <input type="hidden" id="subject" name="subject" th:value="*{subject}"/>
+                        <input type="hidden" id="assignedClasses" name="assignedClasses" th:value="*{assignedClasses}"/>
+                    </div>
+                    <div class="form-group full-width class-field-student" style="display:none;">
+                        <label>Class</label>
+                        <select id="studentClass" name="assignedClasses" th:value="*{assignedClasses}" onchange="updateStudentClassInput()">
+                            <option value="">Select class</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width class-field-student" style="display:none;">
+                        <label>Admission number</label>
+                        <input id="studentAdmissionNo" name="admissionNo" th:field="*{admissionNo}"
+                               placeholder="e.g. S1004 — leave blank to auto-generate"/>
+                    </div>
+                    <div class="form-error" th:if="${#fields.hasAnyErrors()}" th:each="e : ${#fields.allErrors()}" th:text="${e}">Error</div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="registerBtn">Register</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEditModal()">
+    <div class="modal-card">
+        <h2>Edit user</h2>
+        <form id="editUserForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="modal-scroll">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editName">Full name</label>
+                        <input id="editName" name="name" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input id="editEmail" name="email" type="email" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPassword">Password</label>
+                        <input id="editPassword" name="password" type="password" placeholder="Leave blank to keep current"/>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMobile">Mobile</label>
+                        <input id="editMobile" name="mobile" type="tel" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <div id="editRoleDisplay" class="badge" style="margin-top:6px;display:inline-block;"></div>
+                    </div>
+                    <div class="form-group full-width edit-subject-field" style="display:none;">
+                        <label>Class Teacher of</label>
+                        <select id="editClassTeacherOf" name="classTeacherOf">
+                            <option value="">Select class</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width edit-subject-field" style="display:none;">
+                        <label>Teaching assignments</label>
+                        <div class="teach-pair-row">
+                            <select id="editTeachClass" class="teach-select">
+                                <option value="">Class</option>
+                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                            <select id="editTeachSubject" class="teach-select">
+                                <option value="">Subject</option>
+                                <option th:each="s : ${subjects}" th:value="${s}" th:text="${s}"></option>
+                            </select>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="addEditTeachPair()">Add</button>
+                        </div>
+                        <ul id="editTeachList" class="teach-list"></ul>
+                        <input type="hidden" id="editSubject" name="subject"/>
+                        <input type="hidden" id="editAssignedClasses" name="assignedClasses"/>
+                    </div>
+                    <div class="form-group full-width edit-class-field-student" style="display:none;">
+                        <label>Class</label>
+                        <select id="editStudentClass" name="assignedClasses" onchange="updateEditStudentClassInput()">
+                            <option value="">Select class</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showAddModal() {
+    document.getElementById('userModal').style.display = 'flex';
+    clearTeacherSelections();
+    toggleTeacherFields();
+}
+
+function closeModal() {
+    document.getElementById('userModal').style.display = 'none';
+    document.getElementById('registerBtn').disabled = false;
+}
+
+var teachPairs = [];
+
+function toggleTeacherFields() {
+    var role = document.getElementById('role').value;
+    var subjectFields = document.querySelectorAll('.subject-field');
+    for (var i = 0; i < subjectFields.length; i++) {
+        subjectFields[i].style.display = (role === 'teacher') ? 'block' : 'none';
+    }
+    var studentClassFields = document.querySelectorAll('.class-field-student');
+    for (var i = 0; i < studentClassFields.length; i++) {
+        studentClassFields[i].style.display = (role === 'student') ? 'block' : 'none';
+    }
+    var hiddenInput = document.getElementById('assignedClasses');
+    if (role === 'student') {
+        hiddenInput.setAttribute('name', 'assignedClasses');
+        document.getElementById('subject').removeAttribute('name');
+    } else if (role === 'teacher') {
+        hiddenInput.setAttribute('name', 'assignedClasses');
+        document.getElementById('subject').setAttribute('name', 'subject');
+    } else {
+        hiddenInput.removeAttribute('name');
+        document.getElementById('subject').removeAttribute('name');
+    }
+}
+
+function clearTeacherSelections() {
+    teachPairs = [];
+    renderTeachPairs();
+    document.getElementById('subject').value = '';
+    document.getElementById('assignedClasses').value = '';
+    document.getElementById('classTeacherOf').value = '';
+    var studentSelect = document.getElementById('studentClass');
+    if (studentSelect) studentSelect.value = '';
+    var admissionInput = document.getElementById('studentAdmissionNo');
+    if (admissionInput) admissionInput.value = '';
+}
+
+function updateStudentClassInput() {
+    document.getElementById('assignedClasses').value = document.getElementById('studentClass').value;
+}
+
+function addTeachPair() {
+    var cls = document.getElementById('teachClass').value;
+    var subj = document.getElementById('teachSubject').value;
+    if (!cls || !subj) return;
+    teachPairs.push({ class: cls, subject: subj });
+    document.getElementById('teachClass').value = '';
+    document.getElementById('teachSubject').value = '';
+    renderTeachPairs();
+}
+
+function removeTeachPair(index) {
+    teachPairs.splice(index, 1);
+    renderTeachPairs();
+}
+
+function renderTeachPairs() {
+    var list = document.getElementById('teachList');
+    list.innerHTML = '';
+    var seen = {};
+    for (var i = 0; i < teachPairs.length; i++) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span>' + teachPairs[i].class + ' — ' + teachPairs[i].subject + '</span>' +
+            '<button type="button" class="remove-btn" onclick="removeTeachPair(' + i + ')">&times;</button>';
+        list.appendChild(li);
+        seen[teachPairs[i].class] = true;
+    }
+    var classes = Object.keys(seen).join(', ');
+    var subjects = teachPairs.map(function(p) { return p.subject; }).join(', ');
+    document.getElementById('assignedClasses').value = classes;
+    document.getElementById('subject').value = subjects;
+}
+
+var editTeachPairs = [];
+
+function editUser(btn) {
+    var id = btn.getAttribute('data-id');
+    var role = btn.getAttribute('data-role');
+    document.getElementById('editUserForm').action = '/users/' + id + '/edit';
+    document.getElementById('editName').value = btn.getAttribute('data-name');
+    document.getElementById('editEmail').value = btn.getAttribute('data-email');
+    document.getElementById('editMobile').value = btn.getAttribute('data-mobile') || '';
+    document.getElementById('editPassword').value = '';
+    document.getElementById('editRoleDisplay').textContent = role;
+
+    var subject = btn.getAttribute('data-subject') || '';
+    var classes = btn.getAttribute('data-classes') || '';
+    var cteacher = btn.getAttribute('data-cteacher') || '';
+
+    var subjectFields = document.querySelectorAll('.edit-subject-field');
+    for (var i = 0; i < subjectFields.length; i++) {
+        subjectFields[i].style.display = (role === 'teacher') ? 'block' : 'none';
+    }
+    var studentClassFields = document.querySelectorAll('.edit-class-field-student');
+    for (var i = 0; i < studentClassFields.length; i++) {
+        studentClassFields[i].style.display = (role === 'student') ? 'block' : 'none';
+    }
+
+    document.getElementById('editClassTeacherOf').value = cteacher;
+
+    var subjectArr = subject ? subject.split(', ').filter(function(s) { return s.trim(); }) : [];
+    var classArr = classes ? classes.split(', ').filter(function(c) { return c.trim(); }) : [];
+    editTeachPairs = [];
+    for (var i = 0; i < Math.max(subjectArr.length, classArr.length); i++) {
+        if (classArr[i] && subjectArr[i]) {
+            editTeachPairs.push({ class: classArr[i], subject: subjectArr[i] });
+        }
+    }
+    renderEditTeachPairs();
+
+    document.getElementById('editSubject').value = subject;
+    document.getElementById('editAssignedClasses').value = classes;
+    var editHidden = document.getElementById('editAssignedClasses');
+    var editStudentSelect = document.getElementById('editStudentClass');
+    if (role === 'student') {
+        editHidden.setAttribute('name', 'assignedClasses');
+        document.getElementById('editSubject').removeAttribute('name');
+    } else if (role === 'teacher') {
+        editHidden.setAttribute('name', 'assignedClasses');
+        document.getElementById('editSubject').setAttribute('name', 'subject');
+    } else {
+        editHidden.removeAttribute('name');
+        document.getElementById('editSubject').removeAttribute('name');
+    }
+    if (editStudentSelect) {
+        editStudentSelect.value = classes || '';
+    }
+
+    document.getElementById('editUserModal').style.display = 'flex';
+}
+
+function addEditTeachPair() {
+    var cls = document.getElementById('editTeachClass').value;
+    var subj = document.getElementById('editTeachSubject').value;
+    if (!cls || !subj) return;
+    editTeachPairs.push({ class: cls, subject: subj });
+    document.getElementById('editTeachClass').value = '';
+    document.getElementById('editTeachSubject').value = '';
+    renderEditTeachPairs();
+}
+
+function removeEditTeachPair(index) {
+    editTeachPairs.splice(index, 1);
+    renderEditTeachPairs();
+}
+
+function renderEditTeachPairs() {
+    var list = document.getElementById('editTeachList');
+    list.innerHTML = '';
+    var seen = {};
+    for (var i = 0; i < editTeachPairs.length; i++) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span>' + editTeachPairs[i].class + ' — ' + editTeachPairs[i].subject + '</span>' +
+            '<button type="button" class="remove-btn" onclick="removeEditTeachPair(' + i + ')">&times;</button>';
+        list.appendChild(li);
+        seen[editTeachPairs[i].class] = true;
+    }
+    var classes = Object.keys(seen).join(', ');
+    var subjects = editTeachPairs.map(function(p) { return p.subject; }).join(', ');
+    document.getElementById('editAssignedClasses').value = classes;
+    document.getElementById('editSubject').value = subjects;
+}
+
+function closeEditModal() {
+    document.getElementById('editUserModal').style.display = 'none';
+}
+
+if (document.querySelector('.form-error')) {
+    showAddModal();
+}
+</script>
+</body>
+</html>

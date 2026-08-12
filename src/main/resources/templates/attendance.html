@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Attendance')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('attendance')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Roll call</div>
+                <h1>Attendance</h1>
+            </div>
+            <div class="page-actions">
+                <a th:href="@{/attendance/rollcall}" class="btn btn-ghost">Student roll call</a>
+                <a th:href="@{/attendance/rollcall-staff}" class="btn btn-primary" sec:authorize="hasRole('admin')">Staff roll call</a>
+            </div>
+        </header>
+
+        <div class="card">
+            <div class="filter-bar">
+                <form method="get" th:action="@{/attendance}" class="filter-form">
+                    <div class="filter-group">
+                        <label for="dateFilter">Date</label>
+                        <input id="dateFilter" type="date" name="date" th:value="${selectedDate}"/>
+                    </div>
+                    <div class="filter-group" th:unless="${isTeacher}">
+                        <label for="classFilter">Class</label>
+                        <select id="classFilter" name="classFilter">
+                            <option value="">All</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == selectedClass}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group" th:unless="${isTeacher}">
+                        <label for="statusFilter">Status</label>
+                        <select id="statusFilter" name="status">
+                            <option value="">All</option>
+                            <option th:each="st : ${statusNames}" th:value="${st}" th:text="${st}" th:selected="${st == selectedStatus}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group" th:unless="${isTeacher}">
+                        <label for="nameFilter">Name</label>
+                        <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Student or teacher"/>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+                    <a th:href="@{/attendance}" class="btn btn-ghost btn-sm"
+                       th:if="${selectedClass != null or selectedStatus != null or !#strings.isEmpty(name)}">Clear</a>
+                </form>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Remarks</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${rows}">
+                        <td><span class="badge" th:classappend="${r.type == 'staff'} ? ' badge-staff' : ''" th:text="${r.type}"></span></td>
+                        <td class="font-medium" th:text="${r.name}"></td>
+                        <td th:text="${r.className}"></td>
+                        <td th:text="${r.date}"></td>
+                        <td><span class="fee-status" th:classappend="'fee-' + ${r.status}" th:text="${r.status}"></span></td>
+                        <td th:text="${r.remarks ?: '—'}" class="text-muted"></td>
+                        <td>
+                            <button class="btn btn-ghost btn-sm"
+                                    th:attr="data-id=${r.id},data-type=${r.type},data-status=${r.status},data-remarks=${r.remarks}"
+                                    onclick="openEdit(this)">Edit</button>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(rows)}">
+                        <td colspan="7" class="empty-cell">
+                            <span th:if="${isTeacher}">No attendance records for your class match these filters. Mark attendance first via
+                            <a th:href="@{/attendance/rollcall}">Student roll call</a>.</span>
+                            <span th:unless="${isTeacher}">No attendance records match your filters. Mark attendance first via
+                            <a th:href="@{/attendance/rollcall}">Student roll call</a> or
+                            <a th:href="@{/attendance/rollcall-staff}">Staff roll call</a>.</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Edit Attendance Modal -->
+<div id="editModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeEdit()">
+    <div class="modal-card">
+        <h2>Edit attendance</h2>
+        <form id="editForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" id="editId" name="type"/>
+            <div class="modal-scroll">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editStatus">Status</label>
+                        <select id="editStatus" name="status">
+                            <option th:each="st : ${statusNames}" th:value="${st}" th:text="${st}"></option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="editRemarks">Remarks</label>
+                        <input id="editRemarks" name="remarks" type="text" placeholder="Optional notes"/>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEdit(btn) {
+    var id = btn.getAttribute('data-id');
+    var type = btn.getAttribute('data-type');
+    var status = btn.getAttribute('data-status');
+    var remarks = btn.getAttribute('data-remarks') || '';
+    document.getElementById('editForm').action = '/attendance/' + id + '/edit';
+    document.getElementById('editId').value = type;
+    document.getElementById('editStatus').value = status;
+    document.getElementById('editRemarks').value = remarks;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEdit() {
+    document.getElementById('editModal').style.display = 'none';
+}
+</script>
+</body>
+</html>

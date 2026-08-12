@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+
+<div th:fragment="head(title)">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title th:text="${title} + ' — EduAdmin'">EduAdmin</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}"/>
+</div>
+
+<div th:fragment="sidebar(activePage)" class="sidebar">
+    <div class="brand">
+        <div class="brand-mark">Ed</div>
+        <span class="brand-name">EduAdmin</span>
+    </div>
+    <nav class="nav">
+        <div class="nav-label">Main</div>
+        <a th:href="@{/}" class="nav-link" th:classappend="${activePage == 'dashboard'} ? ' active' : ''">
+            <span class="nav-icon">&#9632;</span> Dashboard
+        </a>
+        <a th:href="@{/attendance}" class="nav-link" th:classappend="${activePage == 'attendance'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','teacher','student')">
+            <span class="nav-icon">&#9679;</span> Attendance
+        </a>
+        <a th:href="@{/attendance/leave}" class="nav-link" th:classappend="${activePage == 'leave'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','teacher','student')">
+            <span class="nav-icon">&#9998;</span> Leave
+        </a>
+        <a th:href="@{/fees}" class="nav-link" th:classappend="${activePage == 'fees'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','student')">
+            <span class="nav-icon">&#9632;</span> Fees
+        </a>
+        <a th:href="@{/users}" class="nav-link" th:classappend="${activePage == 'users'} ? ' active' : ''" sec:authorize="hasRole('admin')">
+            <span class="nav-icon">&#9679;</span> Users
+        </a>
+        <a th:href="@{/reviews}" class="nav-link" th:classappend="${activePage == 'reviews'} ? ' active' : ''">
+            <span class="nav-icon">&#9998;</span> Reviews & Discussion
+        </a>
+        <a th:href="@{/notes}" class="nav-link" th:classappend="${activePage == 'notes'} ? ' active' : ''">
+            <span class="nav-icon">&#128196;</span> Notes & Material
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="user-chip">
+            <div class="user-name" sec:authentication="name">User</div>
+            <div class="user-role" sec:authorize="hasRole('admin')">Admin</div>
+            <div class="user-role" sec:authorize="hasRole('teacher')">Teacher</div>
+            <div class="user-role" sec:authorize="hasRole('student')">Student</div>
+        </div>
+        <form th:action="@{/logout}" method="post">
+            <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>
