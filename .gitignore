@@ -5,6 +5,10 @@ target/
 !mvnw
 !mvnw.cmd
 
+# ── Deployment artifacts (built jar) ────────────
+dist/*
+!dist/*.jar
+
 # ── Maven wrapper (keep mvnw scripts, ignore jar if re-downloaded) ──
 .mvn/wrapper/maven-wrapper.jar
 
