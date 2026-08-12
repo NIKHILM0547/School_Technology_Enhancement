@@ -28,6 +28,9 @@
         <a th:href="@{/fees}" class="nav-link" th:classappend="${activePage == 'fees'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','student')">
             <span class="nav-icon">&#9632;</span> Fees
         </a>
+        <a th:href="@{/fees/structure}" class="nav-link" th:classappend="${activePage == 'fees-structure'} ? ' active' : ''" sec:authorize="hasRole('admin')">
+            <span class="nav-icon">&#9632;</span> Fee Structure
+        </a>
         <a th:href="@{/users}" class="nav-link" th:classappend="${activePage == 'users'} ? ' active' : ''" sec:authorize="hasRole('admin')">
             <span class="nav-icon">&#9679;</span> Users
         </a>

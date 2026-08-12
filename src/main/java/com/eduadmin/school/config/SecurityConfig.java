@@ -22,6 +22,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/h2-console/**").permitAll()
                 // Fees: admins manage everything, students can view/pay their own
+                .requestMatchers("/fees/structure/**").hasRole("admin")
                 .requestMatchers("/fees/**").hasAnyRole("admin", "student")
                 // Only admins can manage users
                 .requestMatchers("/users/**").hasRole("admin")

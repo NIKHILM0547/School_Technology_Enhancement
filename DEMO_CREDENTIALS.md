@@ -37,12 +37,27 @@ Passwords:
 - Rajesh Kumar and Meera Iyer marked present each school day, plus two
   non-present records (excused + late) for Rajesh.
 
-### Fees (7 new records, all four statuses represented)
-| Term | Status | Student |
-|---|---|---|
-| Term 2 2026 | unpaid (pending) | Aarav, Diya, Kabir |
-| Term 1 2025 | overdue | Diya, Kabir |
-| Term 2 2025 | partial | Aarav, Kabir |
+### Payments (8 new)
+- Payment history that matches the fees below (fully paid, partial, overdue
+  statuses all derive from today's date vs each due date).
 
-### Payments (5 new)
-- Payment history for the partial Term 2 2025 fees and the existing paid fee.
+### Fees (rebuilt, aligned to the class fee structure)
+All student fee records now match the class fee structure (`Fee Structure` tab)
+amounts and due dates. Statuses are correct relative to today's date:
+
+| Student | Class | Term 1 2025 | Term 2 2025 | Term 1 2026 | Term 2 2026 | Term 3 2026 |
+|---|---|---|---|---|---|---|
+| Aarav | 6-A | paid | paid | **partial** (₹4,000/₹9,500) | unpaid | unpaid |
+| Diya  | 6-A | overdue | overdue | unpaid | unpaid | unpaid |
+| Kabir | 7-B | paid | partial (₹3,000/₹10,000) | unpaid | unpaid | unpaid |
+| Tara  | 7-B | — | — | unpaid | unpaid | unpaid |
+
+- Structure amounts: 6-A = ₹9,500 / ₹9,500 / ₹9,000 · 7-B = ₹10,000 each, due
+  Aug 15 / Dec 1 / Mar 15.
+
+### Fee structure for all classes (108 rows)
+- Every class (`1-A` .. `12-C`) has 3 terms (**Term 1 / 2 / 3 2026**) with amounts
+  that scale by grade (₹18,000/yr for Class 1 up to ₹55,000/yr for Class 12).
+- Due dates: Term 1 = 2026-08-15, Term 2 = 2026-12-01, Term 3 = 2027-03-15.
+- View/edit in **Fees → Fee Structure**; use "Apply structure" to push it to
+  students' fee records.

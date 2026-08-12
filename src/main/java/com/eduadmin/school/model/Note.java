@@ -26,10 +26,6 @@ public class Note {
     @Column(nullable = false)
     private String originalFileName;
 
-    /** Unique name stored on disk (never exposed). */
-    @Column(nullable = false, unique = true)
-    private String storedFileName;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FileKind fileKind;
@@ -66,9 +62,6 @@ public class Note {
 
     public String getOriginalFileName() { return originalFileName; }
     public void setOriginalFileName(String originalFileName) { this.originalFileName = originalFileName; }
-
-    public String getStoredFileName() { return storedFileName; }
-    public void setStoredFileName(String storedFileName) { this.storedFileName = storedFileName; }
 
     public FileKind getFileKind() { return fileKind; }
     public void setFileKind(FileKind fileKind) { this.fileKind = fileKind; }

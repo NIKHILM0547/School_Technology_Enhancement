@@ -2,6 +2,7 @@ package com.eduadmin.school.controller;
 
 import com.eduadmin.school.model.*;
 import com.eduadmin.school.repository.FeeRepository;
+import com.eduadmin.school.repository.FeeStructureRepository;
 import com.eduadmin.school.repository.PaymentRepository;
 import com.eduadmin.school.repository.StudentRepository;
 import com.eduadmin.school.repository.UserRepository;
@@ -19,16 +20,19 @@ import java.util.List;
 public class FeeController {
 
     private final FeeRepository feeRepository;
+    private final FeeStructureRepository feeStructureRepository;
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final PaymentRepository paymentRepository;
 
     public FeeController(FeeRepository feeRepository, StudentRepository studentRepository,
-                         UserRepository userRepository, PaymentRepository paymentRepository) {
+                         UserRepository userRepository, PaymentRepository paymentRepository,
+                         FeeStructureRepository feeStructureRepository) {
         this.feeRepository = feeRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.paymentRepository = paymentRepository;
+        this.feeStructureRepository = feeStructureRepository;
     }
 
     @GetMapping
@@ -68,12 +72,21 @@ public class FeeController {
         }
         List<Fee> myFees = feeRepository.findByStudent(student);
         List<Payment> payments = paymentRepository.findByFeeInOrderByPaidAtDesc(myFees);
+        List<FeeStructure> structure = feeStructureRepository.findByClassNameOrderByTermAsc(student.getClassDisplay());
         double totalPaid = myFees.stream().mapToDouble(Fee::getAmountPaid).sum();
-        double remaining = myFees.stream().mapToDouble(Fee::getOutstanding).filter(v -> v > 0).sum();
+        LocalDate today = LocalDate.now();
+        // "Remaining to pay" = outstanding fees that are already due (overdue or due
+        // today/earlier). Future terms are not counted here.
+        double remaining = myFees.stream()
+                .filter(f -> f.getOutstanding() > 0)
+                .filter(f -> f.getDueDate() == null || !f.getDueDate().isAfter(today))
+                .mapToDouble(Fee::getOutstanding)
+                .sum();
 
         model.addAttribute("student", student);
         model.addAttribute("myFees", myFees);
         model.addAttribute("payments", payments);
+        model.addAttribute("structure", structure);
         model.addAttribute("totalPaid", totalPaid);
         model.addAttribute("remaining", remaining);
         model.addAttribute("activePage", "fees");

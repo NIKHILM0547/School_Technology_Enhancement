@@ -38,6 +38,32 @@
             </div>
         </div>
 
+        <!-- ── Class fee structure ── -->
+        <div class="card" th:if="${not #lists.isEmpty(structure)}">
+            <div class="card-header">
+                <h2>Fee structure for your class</h2>
+                <span class="text-muted" th:text="'Standard fees set by the school for class ' + ${student.classDisplay}"></span>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Term</th>
+                            <th>Amount due</th>
+                            <th>Due date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="s : ${structure}">
+                            <td class="font-medium" th:text="${s.term}">Term</td>
+                            <td th:text="'₹' + ${#numbers.formatDecimal(s.amountDue, 0, 'COMMA', 0, 'POINT')}">₹0</td>
+                            <td th:text="${s.dueDate == null ? '—' : #temporals.format(s.dueDate, 'dd MMM yyyy')}">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ── Fees to pay + pay option ── -->
         <div class="card">
             <div class="card-header">

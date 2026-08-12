@@ -64,14 +64,21 @@ public class DashboardController {
         }
 
         List<Fee> myFees = feeRepository.findByStudent(student);
+        // "Remaining" = outstanding fees that are already due (overdue or due today/earlier).
+        // Future terms are not counted here; they are reported separately as upcoming.
         List<Fee> pendingFees = myFees.stream()
                 .filter(f -> f.getOutstanding() > 0)
+                .filter(f -> f.getDueDate() == null || !f.getDueDate().isAfter(today))
                 .sorted(Comparator.comparing(Fee::getDueDate, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
-        double remaining = myFees.stream().mapToDouble(Fee::getOutstanding).filter(v -> v > 0).sum();
+        double remaining = pendingFees.stream().mapToDouble(Fee::getOutstanding).sum();
         long overdueCount = myFees.stream()
                 .filter(f -> f.getOutstanding() > 0 && f.getDueDate() != null && f.getDueDate().isBefore(today))
                 .count();
+        long upcomingCount = myFees.stream()
+                .filter(f -> f.getOutstanding() > 0 && f.getDueDate() != null && f.getDueDate().isAfter(today))
+                .count();
+        long fullyPaidCount = myFees.stream().filter(f -> f.getOutstanding() <= 0).count();
 
         List<Attendance> myAttendance = attendanceRepository.findByStudent(student);
         myAttendance.sort(Comparator.comparing(Attendance::getDate).reversed());
@@ -91,6 +98,8 @@ public class DashboardController {
         model.addAttribute("pendingFees", pendingFees);
         model.addAttribute("remaining", remaining);
         model.addAttribute("overdueCount", overdueCount);
+        model.addAttribute("upcomingCount", upcomingCount);
+        model.addAttribute("fullyPaidCount", fullyPaidCount);
         model.addAttribute("myAttendance", myAttendance);
         model.addAttribute("attendanceRate", attendanceRate);
         model.addAttribute("presentCount", presentCount);

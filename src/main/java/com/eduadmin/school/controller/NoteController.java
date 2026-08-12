@@ -1,15 +1,16 @@
 package com.eduadmin.school.controller;
 
 import com.eduadmin.school.model.Note;
+import com.eduadmin.school.model.NoteFile;
 import com.eduadmin.school.model.Role;
 import com.eduadmin.school.model.Student;
 import com.eduadmin.school.model.User;
+import com.eduadmin.school.repository.NoteFileRepository;
 import com.eduadmin.school.repository.NoteRepository;
 import com.eduadmin.school.repository.StudentRepository;
 import com.eduadmin.school.repository.UserRepository;
-import com.eduadmin.school.service.NoteStorageService;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +21,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -40,18 +38,18 @@ public class NoteController {
     );
 
     private final NoteRepository noteRepository;
+    private final NoteFileRepository noteFileRepository;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
-    private final NoteStorageService storageService;
 
     public NoteController(NoteRepository noteRepository,
+                          NoteFileRepository noteFileRepository,
                           UserRepository userRepository,
-                          StudentRepository studentRepository,
-                          NoteStorageService storageService) {
+                          StudentRepository studentRepository) {
         this.noteRepository = noteRepository;
+        this.noteFileRepository = noteFileRepository;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
-        this.storageService = storageService;
     }
 
     @GetMapping
@@ -118,12 +116,10 @@ public class NoteController {
         }
 
         try {
-            String stored = storageService.store(file);
             Note note = new Note();
             note.setTitle(cleanTitle);
             note.setDescription(description != null ? description.trim() : "");
             note.setOriginalFileName(file.getOriginalFilename());
-            note.setStoredFileName(stored);
             note.setFileKind(classify(file.getOriginalFilename(), file.getContentType()));
             note.setContentType(file.getContentType());
             note.setFileSize(file.getSize());
@@ -131,6 +127,11 @@ public class NoteController {
             note.setTargetClasses(classes);
             note.setCreatedAt(LocalDateTime.now());
             noteRepository.save(note);
+
+            NoteFile noteFile = new NoteFile();
+            noteFile.setNote(note);
+            noteFile.setData(file.getBytes());
+            noteFileRepository.save(noteFile);
         } catch (Exception e) {
             model.addAttribute("errorMessages", List.of("Could not save the uploaded file. Please try again."));
             model.addAttribute("notes", noteRepository.findAllByOrderByCreatedAtDesc());
@@ -155,21 +156,17 @@ public class NoteController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
 
-        Path path = storageService.resolve(note.getStoredFileName());
-        try {
-            Resource resource = new UrlResource(path.toUri());
-            if (!resource.exists() || !resource.isReadable()) {
-                return ResponseEntity.notFound().build();
-            }
-            String contentType = note.getContentType() != null ? note.getContentType()
-                    : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + note.getOriginalFileName() + "\"")
-                    .body(resource);
-        } catch (MalformedURLException e) {
+        NoteFile noteFile = noteFileRepository.findById(id).orElse(null);
+        if (noteFile == null || noteFile.getData() == null) {
             return ResponseEntity.notFound().build();
         }
+        Resource resource = new ByteArrayResource(noteFile.getData());
+        String contentType = note.getContentType() != null ? note.getContentType()
+                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + note.getOriginalFileName() + "\"")
+                .body(resource);
     }
 
     /** Deletes a note. Only the uploader or an admin may delete. */
@@ -183,8 +180,8 @@ public class NoteController {
         if (user.getRole() != Role.admin && !user.getId().equals(note.getUploadedBy().getId())) {
             return "redirect:/notes";
         }
+        noteFileRepository.findById(id).ifPresent(noteFileRepository::delete);
         noteRepository.delete(note);
-        storageService.delete(note.getStoredFileName());
         return "redirect:/notes";
     }
 

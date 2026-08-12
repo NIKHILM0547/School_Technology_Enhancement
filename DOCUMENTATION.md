@@ -51,6 +51,9 @@ persistence. There is no separate frontend - everything runs from one
 - **Fees** - create fee records (term, amount due, amount paid, due date),
   record partial payments, auto status (`unpaid` / `partial` / `paid` /
   `overdue`), filter by student / class / name.
+- **Fee structure** - admin defines a per-class fee template (term, amount due,
+  due date) and applies it to create/update fee records for all students in a
+  class; the structure also shows on each student's fees page.
 - **Users** - admin manages teacher & student accounts: create (with admission
   number), edit profile, delete. Creating a student user auto-creates the
   linked `Student` record; admission numbers are auto-generated (`S1004`, ...)
@@ -83,7 +86,10 @@ src/main/java/com/eduadmin/school/
 |   |-- AttendanceStatus.java           # enum: present, absent, late, excused
 |   |-- LeaveRequest.java               # student/teacher leave applications
 |   |-- LeaveStatus.java                # enum: pending, approved, rejected
+|   |-- Note.java                       # note metadata + target classes
+|   |-- NoteFile.java                   # note bytes stored in DB (LONGBLOB)
 |   |-- Fee.java                        # includes recomputeStatus()
+|   |-- FeeStructure.java               # per-class fee template
 |   `-- Review.java                     # student reviews / difficulties
 |-- repository/                         # Spring Data repositories
 |   |-- UserRepository.java
@@ -91,7 +97,10 @@ src/main/java/com/eduadmin/school/
 |   |-- AttendanceRepository.java
 |   |-- StaffAttendanceRepository.java
 |   |-- LeaveRequestRepository.java
+|   |-- NoteRepository.java
+|   |-- NoteFileRepository.java
 |   |-- FeeRepository.java
+|   |-- FeeStructureRepository.java
 |   `-- ReviewRepository.java
 `-- controller/
     |-- LoginController.java            # GET /login
@@ -99,7 +108,9 @@ src/main/java/com/eduadmin/school/
     |-- DashboardController.java        # GET /
     |-- AttendanceController.java       # /attendance/**
     |-- LeaveController.java            # /attendance/leave/**
+    |-- NoteController.java             # /notes/**
     |-- FeeController.java              # /fees/**
+    |-- FeeStructureController.java     # /fees/structure/**
     |-- UserController.java             # /users/**
     `-- ReviewController.java           # /reviews/**
 
@@ -113,6 +124,7 @@ src/main/resources/
 |   |-- attendance-staff.html           # mark staff attendance
 |   |-- leave.html                      # apply for leave + review requests
 |   |-- fees.html
+|   |-- fee-structure.html              # per-class fee templates + apply
 |   |-- users.html                      # manage teacher/student accounts
 |   |-- reviews.html                    # discussion board
 |   `-- fragments/layout.html           # shared head + sidebar (th:replace)
@@ -198,6 +210,8 @@ Tables (auto-created by Hibernate):
 | `attendance` | Per-student-per-day attendance | `ManyToOne` -> `students` |
 | `staff_attendance` | Per-teacher-per-day attendance | `ManyToOne` -> `users` |
 | `leave_requests` | Student/teacher leave applications | `ManyToOne` -> `users` (applicant + reviewer), `ManyToOne` -> `students` |
+| `note_files` | Raw bytes of each note (`LONGBLOB`) | `@MapsId` `@OneToOne` -> `notes` (PK = `note_id`) |
+| `fee_structures` | Per-class fee templates (class + term) | unique (`class_name`, `term`) |
 | `fees` | Fee records per student | `ManyToOne` -> `students` |
 | `reviews` | Student reviews/difficulties | `ManyToOne` -> `students` |
 
@@ -284,6 +298,16 @@ Shown to every role. Reads today's data:
 - Pay: `POST /fees/{id}/pay` with an amount adds to `amountPaid`, then
   `recomputeStatus()`.
 
+### Fee structure (`/fees/structure`, admin only)
+
+- Admin defines fee templates per class: class + term + amount due + due date
+  (`fee_structures` table, unique on class + term). Add / inline-edit / delete.
+- "Apply structure" upserts a fee record for every student in the class, matched
+  by term: existing records keep their `amountPaid` and refresh amount/due date,
+  new ones are created as `unpaid`. Deleting a structure row does not remove
+  already-applied fee records.
+- Students see their class's fee structure as a reference on their fees page.
+
 ### Users (`/users`, admin only)
 
 - Create teacher or student accounts. For students, `admissionNo` and class
@@ -311,11 +335,13 @@ Shown to every role. Reads today's data:
 - Students only see notes shared with their own class (matched on
   `Student.getClassDisplay()`, e.g. `6-A`); the note list and file download are
   restricted accordingly.
-- Uploaded files are stored on disk under `data/notes/`
-  (`school.notes.upload-dir`, default `./data/notes`) with UUID file names; the
-  `notes` table stores the metadata and `note_target_classes` stores the
+- Files are stored **in the database**, not on disk: the `note_files` table
+  holds the raw bytes as a `LONGBLOB`, keyed 1:1 by `note_id`
+  (`@MapsId`/`@OneToOne`, lazily loaded so the notes list doesn't pull blobs).
+  The `notes` table stores the metadata and `note_target_classes` stores the
   selected classes.
-- Only the uploader or an admin can delete a note.
+- Only the uploader or an admin can delete a note; deleting a note removes its
+  blob row too.
 - `spring.servlet.multipart.max-file-size` (100 MB) controls the upload limit.
 
 ---
@@ -341,6 +367,11 @@ Shown to every role. Reads today's data:
 | GET | `/fees` | admin | Fee list with filters |
 | POST | `/fees/new` | admin | Create a fee record |
 | POST | `/fees/{id}/pay` | admin | Record a payment |
+| GET | `/fees/structure` | admin | Fee structure per class |
+| POST | `/fees/structure/new` | admin | Add a structure row |
+| POST | `/fees/structure/{id}/edit` | admin | Update amount/due date |
+| POST | `/fees/structure/{id}/delete` | admin | Delete a structure row |
+| POST | `/fees/structure/apply` | admin | Apply structure to class students |
 | GET | `/users` | admin | User list with filters |
 | POST | `/users/new` | admin | Create teacher/student |
 | POST | `/users/{id}/edit` | admin | Update a user |

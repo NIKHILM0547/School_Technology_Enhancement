@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface FeeRepository extends JpaRepository<Fee, Long> {
     List<Fee> findAllByOrderByDueDateAsc();
@@ -15,6 +16,7 @@ public interface FeeRepository extends JpaRepository<Fee, Long> {
     List<Fee> findByStudent_Id(Long studentId);
     List<Fee> findByStudent_ClassName(String className);
     List<Fee> findByStudent_IdAndStudent_ClassName(Long studentId, String className);
+    Optional<Fee> findByStudent_IdAndTerm(Long studentId, String term);
 
     /** Filters by optional studentId/classFilter and searches by student name. */
     @Query("SELECT f FROM Fee f WHERE "

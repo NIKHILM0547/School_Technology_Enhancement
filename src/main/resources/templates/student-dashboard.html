@@ -56,12 +56,18 @@
                             <span class="fee-status" th:classappend="'fee-' + ${f.status}" th:text="${f.status}"></span>
                         </div>
                     </li>
-                    <li th:if="${#lists.isEmpty(pendingFees)}">
+                    <li th:if="${#lists.isEmpty(pendingFees) and upcomingCount > 0}">
+                        <span class="empty-note">No fees due right now. Your upcoming terms are not yet payable.</span>
+                    </li>
+                    <li th:if="${#lists.isEmpty(pendingFees) and upcomingCount == 0}">
                         <span class="empty-note">No pending fees. All settled.</span>
                     </li>
                 </ul>
-                <div class="card-note" th:if="${#lists.size(myFees) > #lists.size(pendingFees)}">
-                    You also have <strong th:text="${#lists.size(myFees) - #lists.size(pendingFees)}">0</strong> fully paid fee record(s).
+                <div class="card-note" th:if="${upcomingCount > 0}">
+                    You also have <strong th:text="${upcomingCount}">0</strong> upcoming fee record(s) not yet due.
+                </div>
+                <div class="card-note" th:if="${fullyPaidCount > 0}">
+                    You also have <strong th:text="${fullyPaidCount}">0</strong> fully paid fee record(s).
                 </div>
             </div>
 
