@@ -85,7 +85,6 @@ public class DashboardController {
         long presentCount = count(myAttendance, AttendanceStatus.present);
         long absentCount = count(myAttendance, AttendanceStatus.absent);
         long lateCount = count(myAttendance, AttendanceStatus.late);
-        long excusedCount = count(myAttendance, AttendanceStatus.excused);
         long markedDays = myAttendance.size();
         int attendanceRate = markedDays == 0 ? 0
                 : (int) Math.round(100.0 * presentCount / markedDays);
@@ -105,7 +104,6 @@ public class DashboardController {
         model.addAttribute("presentCount", presentCount);
         model.addAttribute("absentCount", absentCount);
         model.addAttribute("lateCount", lateCount);
-        model.addAttribute("excusedCount", excusedCount);
         model.addAttribute("myReviews", myReviews);
         model.addAttribute("isStudent", true);
         model.addAttribute("activePage", "dashboard");
@@ -120,7 +118,6 @@ public class DashboardController {
         long presentStudents = count(todayAttendance, AttendanceStatus.present);
         long absentStudents = count(todayAttendance, AttendanceStatus.absent);
         long lateStudents = count(todayAttendance, AttendanceStatus.late);
-        long excusedStudents = count(todayAttendance, AttendanceStatus.excused);
         long markedToday = todayAttendance.size();
         int attendanceRate = markedToday == 0 ? 0 : (int) Math.round(100.0 * presentStudents / markedToday);
 
@@ -151,7 +148,6 @@ public class DashboardController {
         model.addAttribute("presentStudents", presentStudents);
         model.addAttribute("absentStudents", absentStudents);
         model.addAttribute("lateStudents", lateStudents);
-        model.addAttribute("excusedStudents", excusedStudents);
         model.addAttribute("attendanceRate", attendanceRate);
         model.addAttribute("staffPresent", staffPresent);
         model.addAttribute("absentToday", absentToday);
@@ -192,7 +188,7 @@ public class DashboardController {
             todayRecords.put(a.getStudent().getId(), a);
         }
 
-        long presentToday = 0, absentToday = 0, lateToday = 0, excusedToday = 0;
+        long presentToday = 0, absentToday = 0, lateToday = 0;
         List<String> absentNames = new ArrayList<>();
         int markedToday = 0;
         for (Student s : students) {
@@ -203,7 +199,6 @@ public class DashboardController {
                 case present -> presentToday++;
                 case absent -> { absentToday++; absentNames.add(s.getFullName()); }
                 case late -> lateToday++;
-                case excused -> excusedToday++;
                 default -> { }
             }
         }
@@ -217,7 +212,6 @@ public class DashboardController {
         model.addAttribute("presentToday", presentToday);
         model.addAttribute("absentToday", absentToday);
         model.addAttribute("lateToday", lateToday);
-        model.addAttribute("excusedToday", excusedToday);
         model.addAttribute("absentNames", absentNames);
         model.addAttribute("markedToday", markedToday);
         model.addAttribute("activePage", "dashboard");

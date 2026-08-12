@@ -55,12 +55,20 @@ public class FeeController {
         List<Fee> fees = feeRepository.search(studentIdQuery, classQuery, nameQuery);
         model.addAttribute("fees", fees);
         model.addAttribute("students", studentRepository.findAllByOrderByLastNameAsc());
-        model.addAttribute("classes", studentRepository.findDistinctClassDisplay());
+        model.addAttribute("classes", allClasses());
         model.addAttribute("selectedStudentId", studentId);
         model.addAttribute("selectedClass", classQuery);
         model.addAttribute("name", nameQuery);
         model.addAttribute("activePage", "fees");
         return "fees";
+    }
+
+    /** All classes in the fee structure, plus any other classes that have students. */
+    private List<String> allClasses() {
+        return feeStructureRepository.findAllByOrderByClassNameAscTermAsc().stream()
+                .map(FeeStructure::getClassName)
+                .distinct()
+                .toList();
     }
 
     /** Student view: only their own fees, payment history, and pay option. */

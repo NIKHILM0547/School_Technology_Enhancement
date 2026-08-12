@@ -2,6 +2,7 @@ package com.eduadmin.school.controller;
 
 import com.eduadmin.school.model.*;
 import com.eduadmin.school.repository.AttendanceRepository;
+import com.eduadmin.school.repository.FeeStructureRepository;
 import com.eduadmin.school.repository.StaffAttendanceRepository;
 import com.eduadmin.school.repository.StudentRepository;
 import com.eduadmin.school.repository.UserRepository;
@@ -31,15 +32,18 @@ public class AttendanceController {
     private final AttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
     private final StaffAttendanceRepository staffAttendanceRepository;
+    private final FeeStructureRepository feeStructureRepository;
 
     public AttendanceController(StudentRepository studentRepository,
                                 AttendanceRepository attendanceRepository,
                                 UserRepository userRepository,
-                                StaffAttendanceRepository staffAttendanceRepository) {
+                                StaffAttendanceRepository staffAttendanceRepository,
+                                FeeStructureRepository feeStructureRepository) {
         this.studentRepository = studentRepository;
         this.attendanceRepository = attendanceRepository;
         this.userRepository = userRepository;
         this.staffAttendanceRepository = staffAttendanceRepository;
+        this.feeStructureRepository = feeStructureRepository;
     }
 
     @GetMapping
@@ -47,6 +51,7 @@ public class AttendanceController {
                        @RequestParam(required = false) String status,
                        @RequestParam(required = false) String classFilter,
                        @RequestParam(required = false) String name,
+                       @RequestParam(required = false) String type,
                        Model model) {
         User user = currentUser();
         if (user != null && user.getRole() == Role.student) {
@@ -54,6 +59,11 @@ public class AttendanceController {
         }
         boolean isTeacher = user != null && user.getRole() == Role.teacher;
         LocalDate selectedDate = (date != null && !date.isBlank()) ? LocalDate.parse(date) : LocalDate.now();
+
+        String typeQuery = (type != null && !type.isBlank()) ? type.trim() : "";
+        if (!typeQuery.equals("student") && !typeQuery.equals("teacher")) {
+            typeQuery = "";
+        }
 
         AttendanceStatus selectedStatus = null;
         boolean anyStatus = true;
@@ -67,12 +77,16 @@ public class AttendanceController {
         }
 
         String classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
+        // A class filter only applies to student rows — ignore it when viewing staff only.
+        if ("teacher".equals(typeQuery)) {
+            classQuery = "";
+        }
         String nameTrim = (name != null && !name.isBlank()) ? name.trim() : "";
         String nameQuery = nameTrim.toLowerCase();
 
         // Teachers see only their own class-teacher class; admins see everyone.
-        List<Student> visibleStudents = isTeacher
-                ? studentsOfClass(user)
+        List<Student> visibleStudents = ("teacher".equals(typeQuery) || isTeacher)
+                ? List.of()
                 : studentRepository.findAllByOrderByLastNameAsc();
 
         Map<Long, Attendance> studentRecords = new HashMap<>();
@@ -92,17 +106,17 @@ public class AttendanceController {
             Attendance rec = studentRecords.get(s.getId());
             AttendanceStatus st = (rec != null) ? rec.getStatus() : AttendanceStatus.present;
             if (!anyStatus && st != selectedStatus) continue;
-            rows.add(new AttendanceRow(s.getId(), "student", s.getFullName(), s.getClassDisplay(),
+            rows.add(new AttendanceRow(rec != null ? rec.getId() : null, "student", s.getFullName(), s.getClassDisplay(),
                     selectedDate, st, rec != null ? rec.getRemarks() : null));
         }
-        // Staff rows are only shown to admins, and only when not class-filtered.
-        if (!isTeacher && !classFiltered) {
+        // Staff rows are shown to admins when filtering for staff (or all), and only when not class-filtered.
+        if (!isTeacher && !"student".equals(typeQuery) && !classFiltered) {
             for (User u : userRepository.findByRole(Role.teacher)) {
                 if (!nameQuery.isEmpty() && !u.getName().toLowerCase().contains(nameQuery)) continue;
                 StaffAttendance rec = staffRecords.get(u.getId());
                 AttendanceStatus st = (rec != null) ? rec.getStatus() : AttendanceStatus.present;
                 if (!anyStatus && st != selectedStatus) continue;
-                rows.add(new AttendanceRow(u.getId(), "staff", u.getName(), "Staff",
+                rows.add(new AttendanceRow(rec != null ? rec.getId() : null, "staff", u.getName(), "Staff",
                         selectedDate, st, rec != null ? rec.getRemarks() : null));
             }
         }
@@ -111,11 +125,15 @@ public class AttendanceController {
         model.addAttribute("rows", rows);
         model.addAttribute("classes", isTeacher
                 ? teacherClassNames(user)
-                : studentRepository.findDistinctClassDisplay());
+                : feeStructureRepository.findAllByOrderByClassNameAscTermAsc().stream()
+                        .map(FeeStructure::getClassName)
+                        .distinct()
+                        .toList());
         model.addAttribute("statusNames", STATUS_NAMES);
         model.addAttribute("selectedDate", selectedDate.toString());
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedClass", classQuery);
+        model.addAttribute("selectedType", typeQuery);
         model.addAttribute("name", nameTrim);
         model.addAttribute("isTeacher", isTeacher);
         model.addAttribute("activePage", "attendance");
@@ -157,17 +175,28 @@ public class AttendanceController {
         LocalDate selected = (date != null && !date.isBlank()) ? LocalDate.parse(date) : LocalDate.now();
         List<User> staff = userRepository.findByRole(Role.teacher);
 
-        Map<Long, String> currentMarks = new HashMap<>();
+        Map<Long, String> staffMarks = new HashMap<>();
         for (User u : staff) {
-            currentMarks.put(u.getId(),
+            staffMarks.put(u.getId(),
                     staffAttendanceRepository.findByStaffAndDate(u, selected)
                             .map(sa -> sa.getStatus().name())
                             .orElse("present"));
         }
 
+        List<Student> students = studentRepository.findAllByOrderByLastNameAsc();
+        Map<Long, String> studentMarks = new HashMap<>();
+        for (Student s : students) {
+            studentMarks.put(s.getId(),
+                    attendanceRepository.findByStudentAndDate(s, selected)
+                            .map(a -> a.getStatus().name())
+                            .orElse("present"));
+        }
+
         model.addAttribute("staff", staff);
+        model.addAttribute("students", students);
         model.addAttribute("selectedDate", selected.toString());
-        model.addAttribute("currentMarks", currentMarks);
+        model.addAttribute("staffMarks", staffMarks);
+        model.addAttribute("studentMarks", studentMarks);
         model.addAttribute("statuses", STATUS_NAMES);
         model.addAttribute("activePage", "attendance");
         return "attendance-staff";
@@ -206,25 +235,43 @@ public class AttendanceController {
     @PostMapping("/save-staff")
     @Transactional
     public String saveStaff(@RequestParam String date,
-                            @RequestParam List<Long> staffIds,
-                            @RequestParam List<String> statuses) {
-        // Staff attendance is admin-only.
+                            @RequestParam(required = false) List<Long> staffIds,
+                            @RequestParam(required = false) List<String> staffStatuses,
+                            @RequestParam(required = false) List<Long> studentIds,
+                            @RequestParam(required = false) List<String> studentStatuses) {
+        // Staff roll call (both staff + student marking) is admin-only.
         User user = currentUser();
         if (user == null || user.getRole() != Role.admin) {
             return "redirect:/attendance";
         }
         LocalDate parsedDate = LocalDate.parse(date);
-        for (int i = 0; i < staffIds.size(); i++) {
-            if (i >= statuses.size()) break;
-            User staff = userRepository.findById(staffIds.get(i)).orElse(null);
-            if (staff == null) continue;
+        if (staffIds != null) {
+            for (int i = 0; i < staffIds.size(); i++) {
+                if (i >= staffStatuses.size()) break;
+                User staff = userRepository.findById(staffIds.get(i)).orElse(null);
+                if (staff == null) continue;
 
-            StaffAttendance record = staffAttendanceRepository.findByStaffAndDate(staff, parsedDate)
-                    .orElseGet(StaffAttendance::new);
-            record.setStaff(staff);
-            record.setDate(parsedDate);
-            record.setStatus(AttendanceStatus.valueOf(statuses.get(i)));
-            staffAttendanceRepository.save(record);
+                StaffAttendance record = staffAttendanceRepository.findByStaffAndDate(staff, parsedDate)
+                        .orElseGet(StaffAttendance::new);
+                record.setStaff(staff);
+                record.setDate(parsedDate);
+                record.setStatus(AttendanceStatus.valueOf(staffStatuses.get(i)));
+                staffAttendanceRepository.save(record);
+            }
+        }
+        if (studentIds != null) {
+            for (int i = 0; i < studentIds.size(); i++) {
+                if (i >= studentStatuses.size()) break;
+                Student student = studentRepository.findById(studentIds.get(i)).orElse(null);
+                if (student == null) continue;
+
+                Attendance record = attendanceRepository.findByStudentAndDate(student, parsedDate)
+                        .orElseGet(Attendance::new);
+                record.setStudent(student);
+                record.setDate(parsedDate);
+                record.setStatus(AttendanceStatus.valueOf(studentStatuses.get(i)));
+                attendanceRepository.save(record);
+            }
         }
         return "redirect:/attendance/rollcall-staff?date=" + date + "&saved=true";
     }
@@ -281,7 +328,6 @@ public class AttendanceController {
         long present = records.stream().filter(a -> a.getStatus() == AttendanceStatus.present).count();
         long absent = records.stream().filter(a -> a.getStatus() == AttendanceStatus.absent).count();
         long late = records.stream().filter(a -> a.getStatus() == AttendanceStatus.late).count();
-        long excused = records.stream().filter(a -> a.getStatus() == AttendanceStatus.excused).count();
         int rate = records.isEmpty() ? 0 : (int) Math.round(100.0 * present / records.size());
 
         model.addAttribute("student", student);
@@ -289,7 +335,6 @@ public class AttendanceController {
         model.addAttribute("presentCount", present);
         model.addAttribute("absentCount", absent);
         model.addAttribute("lateCount", late);
-        model.addAttribute("excusedCount", excused);
         model.addAttribute("attendanceRate", rate);
         model.addAttribute("activePage", "attendance");
         return "my-attendance";

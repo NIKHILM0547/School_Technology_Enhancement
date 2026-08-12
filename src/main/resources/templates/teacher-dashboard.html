@@ -34,7 +34,7 @@
                 <div class="stat-icon">&#10003;</div>
                 <div class="stat-label">Present today</div>
                 <div class="stat-value" th:text="${presentToday}">0</div>
-                <div class="stat-sub" th:text="${lateToday} + ' late / ' + ${excusedToday} + ' excused'">0</div>
+                <div class="stat-sub" th:text="${lateToday} + ' late today'">0</div>
             </div>
             <div class="stat-card stat-absent">
                 <div class="stat-icon">&#10007;</div>
@@ -63,10 +63,6 @@
                     <div class="legend-item">
                         <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
                         <span class="legend-value" th:text="${lateToday}">0</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
-                        <span class="legend-value" th:text="${excusedToday}">0</span>
                     </div>
                 </div>
                 <div class="progress-label">

@@ -9,7 +9,13 @@
     <link rel="stylesheet" th:href="@{/css/styles.css}"/>
 </div>
 
-<div th:fragment="sidebar(activePage)" class="sidebar">
+<div th:fragment="sidebar(activePage)">
+    <button type="button" class="menu-toggle" aria-label="Toggle menu" onclick="toggleSidebar()">
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <div class="sidebar" id="appSidebar">
     <div class="brand">
         <div class="brand-mark">Ed</div>
         <span class="brand-name">EduAdmin</span>
@@ -52,6 +58,22 @@
             <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
         </form>
     </div>
+    </div>
+
+    <script>
+        function toggleSidebar() {
+            var s = document.getElementById('appSidebar');
+            var o = document.getElementById('sidebarOverlay');
+            var open = s.classList.toggle('open');
+            o.classList.toggle('open', open);
+            document.body.classList.toggle('no-scroll', open);
+        }
+        function closeSidebar() {
+            document.getElementById('appSidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('open');
+            document.body.classList.remove('no-scroll');
+        }
+    </script>
 </div>
 
 </body>

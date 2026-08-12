@@ -34,7 +34,7 @@
                 <div class="stat-icon">&#10007;</div>
                 <div class="stat-label">Absent</div>
                 <div class="stat-value" th:text="${absentCount}">0</div>
-                <div class="stat-sub" th:text="${lateCount + excusedCount} + ' late / excused'">0</div>
+                <div class="stat-sub" th:text="${lateCount} + ' late'">0</div>
             </div>
         </div>
 
@@ -55,10 +55,6 @@
                 <div class="legend-item">
                     <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
                     <span class="legend-value" th:text="${lateCount}">0</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
-                    <span class="legend-value" th:text="${excusedCount}">0</span>
                 </div>
             </div>
             <div class="progress-label">

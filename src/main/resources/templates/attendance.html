@@ -24,6 +24,14 @@
                         <input id="dateFilter" type="date" name="date" th:value="${selectedDate}"/>
                     </div>
                     <div class="filter-group" th:unless="${isTeacher}">
+                        <label for="typeFilter">Type</label>
+                        <select id="typeFilter" name="type" onchange="toggleTypeFilter(this)">
+                            <option value="">All</option>
+                            <option value="student" th:selected="${selectedType == 'student'}">Student</option>
+                            <option value="teacher" th:selected="${selectedType == 'teacher'}">Staff</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" id="classFilterGroup" th:unless="${isTeacher or selectedType == 'teacher'}">
                         <label for="classFilter">Class</label>
                         <select id="classFilter" name="classFilter">
                             <option value="">All</option>
@@ -43,7 +51,7 @@
                     </div>
                     <button class="btn btn-ghost btn-sm" type="submit">Search</button>
                     <a th:href="@{/attendance}" class="btn btn-ghost btn-sm"
-                       th:if="${selectedClass != null or selectedStatus != null or !#strings.isEmpty(name)}">Clear</a>
+                       th:if="${selectedClass != null or selectedStatus != null or !#strings.isEmpty(name) or !#strings.isEmpty(selectedType)}">Clear</a>
                 </form>
             </div>
             <div class="table-wrapper">
@@ -69,8 +77,11 @@
                         <td th:text="${r.remarks ?: '—'}" class="text-muted"></td>
                         <td>
                             <button class="btn btn-ghost btn-sm"
+                                    th:if="${r.id != null}"
                                     th:attr="data-id=${r.id},data-type=${r.type},data-status=${r.status},data-remarks=${r.remarks}"
                                     onclick="openEdit(this)">Edit</button>
+                            <a th:if="${r.id == null}" th:href="@{/attendance/rollcall(date=${selectedDate})}"
+                               class="btn btn-ghost btn-sm">Mark</a>
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(rows)}">
@@ -119,6 +130,13 @@
 </div>
 
 <script>
+function toggleTypeFilter(select) {
+    var classGroup = document.getElementById('classFilterGroup');
+    if (classGroup) {
+        classGroup.style.display = (select.value === 'teacher') ? 'none' : '';
+    }
+}
+
 function openEdit(btn) {
     var id = btn.getAttribute('data-id');
     var type = btn.getAttribute('data-type');

@@ -39,7 +39,7 @@ persistence. There is no separate frontend - everything runs from one
 
 ## Features
 
-- **Dashboard** - today's attendance summary (present/absent/late/excused),
+- **Dashboard** - today's attendance summary (present/absent/late),
   attendance rate, staff present count, list of absent people today, fee
   collections (total collected, outstanding, overdue count, pending list).
 - **Attendance** - student **and** staff attendance:
@@ -83,7 +83,7 @@ src/main/java/com/eduadmin/school/
 |   |-- Student.java                    # admission record, links to a User
 |   |-- Attendance.java                 # student attendance per day
 |   |-- StaffAttendance.java            # staff attendance per day
-|   |-- AttendanceStatus.java           # enum: present, absent, late, excused
+|   |-- AttendanceStatus.java           # enum: present, absent, late
 |   |-- LeaveRequest.java               # student/teacher leave applications
 |   |-- LeaveStatus.java                # enum: pending, approved, rejected
 |   |-- Note.java                       # note metadata + target classes
@@ -219,7 +219,7 @@ Important details:
 
 - **Enums are stored as strings** (`@Enumerated(EnumType.STRING)`): `Role`
   (admin/teacher/student), `AttendanceStatus`
-  (present/absent/late/excused), `LeaveStatus`
+  (present/absent/late), `LeaveStatus`
   (pending/approved/rejected), `Fee.Status`
   (unpaid/partial/paid/overdue).
 - **`User.admissionNo` is `@Transient`** - the admission number lives on the
@@ -259,7 +259,7 @@ account.
 
 Shown to every role. Reads today's data:
 
-- Student attendance counts (present/absent/late/excused) and attendance rate
+- Student attendance counts (present/absent/late) and attendance rate
   (present / marked that day).
 - Staff present count.
 - Absent list for today (students + staff).

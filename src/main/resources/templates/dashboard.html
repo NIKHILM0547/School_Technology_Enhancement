@@ -39,7 +39,7 @@
                 <div class="stat-icon">&#10007;</div>
                 <div class="stat-label">Absent today</div>
                 <div class="stat-value" th:text="${absentStudents}">0</div>
-                <div class="stat-sub" th:text="${lateStudents + excusedStudents} + ' late / excused'">0</div>
+                <div class="stat-sub" th:text="${lateStudents} + ' late'">0</div>
             </a>
             <a th:href="@{/fees}" class="stat-card stat-collected">
                 <div class="stat-icon">&#8377;</div>
@@ -74,10 +74,6 @@
                     <div class="legend-item">
                         <span class="legend-label"><span class="legend-dot dot-late"></span>Late</span>
                         <span class="legend-value" th:text="${lateStudents}">0</span>
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-label"><span class="legend-dot dot-excused"></span>Excused</span>
-                        <span class="legend-value" th:text="${excusedStudents}">0</span>
                     </div>
                 </div>
                 <div class="progress-label">

@@ -43,7 +43,7 @@
                                     <div th:each="st : ${statuses}"
                                          th:class="'status-pill' + (${currentMarks.get(s.id) == st} ? ' selected pill-' + ${st} : '')"
                                          th:text="${st}"
-                                         onclick="selectPill(this, 'status_'+${s.id})"></div>
+                                         onclick="selectPill(this)"></div>
                                 </div>
                                 <input type="hidden" th:id="'status_'+${s.id}" name="statuses"
                                        th:value="${currentMarks.get(s.id)}"/>
@@ -67,12 +67,12 @@
 </div>
 
 <script>
-function selectPill(el, hiddenId) {
+function selectPill(el) {
     var parent = el.parentElement;
     var pills = parent.querySelectorAll('.status-pill');
     pills.forEach(function(p) { p.className = 'status-pill'; });
     el.className = 'status-pill selected pill-' + el.textContent.trim();
-    document.getElementById(hiddenId).value = el.textContent.trim();
+    parent.nextElementSibling.value = el.textContent.trim();
 }
 </script>
 </body>

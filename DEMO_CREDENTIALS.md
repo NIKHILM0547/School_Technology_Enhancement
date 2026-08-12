@@ -31,11 +31,10 @@ Passwords:
 - Aarav: Decimals chapter
 
 ### Student attendance (21 records, 2026-08-03 .. 2026-08-11)
-- Mix of `present`, `late`, `absent`, `excused` for Aarav, Diya and Kabir.
+- Mix of `present`, `late`, `absent` for Aarav, Diya and Kabir.
 
 ### Staff attendance (14 records)
-- Rajesh Kumar and Meera Iyer marked present each school day, plus two
-  non-present records (excused + late) for Rajesh.
+- Rajesh Kumar and Meera Iyer marked present each school day.
 
 ### Payments (8 new)
 - Payment history that matches the fees below (fully paid, partial, overdue
