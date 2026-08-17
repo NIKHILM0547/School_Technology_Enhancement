@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Report Cards')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('reportcards')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Documents</div>
+                <h1>Report Cards</h1>
+            </div>
+        </header>
+
+        <div th:if="${param.saved}" class="alert alert-success" style="margin-bottom:16px;">Report card settings saved.</div>
+
+        <!-- School branding settings (admin only) -->
+        <div class="card" sec:authorize="hasRole('admin')">
+            <div class="card-header">
+                <h2>School branding</h2>
+                <span class="text-muted">Shown at the top of every generated report card</span>
+            </div>
+            <form th:action="@{/reportcards/settings}" method="post" enctype="multipart/form-data" class="settings-form">
+                <div class="brand-row">
+                    <div class="brand-preview">
+                        <div th:if="${hasLogo}" class="logo-frame">
+                            <img th:src="@{/reportcards/settings/logo}" alt="School logo"/>
+                        </div>
+                        <div th:unless="${hasLogo}" class="logo-frame empty">No logo</div>
+                    </div>
+                    <div class="brand-fields">
+                        <div class="form-group">
+                            <label for="schoolName">School name</label>
+                            <input id="schoolName" name="schoolName" type="text"
+                                   th:value="${settings.schoolName}" required placeholder="e.g. St. Xavier's School"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Address / tagline</label>
+                            <input id="address" name="address" type="text"
+                                   th:value="${settings.address}" placeholder="e.g. Gandhi Road, New Delhi"/>
+                        </div>
+                        <div class="form-group">
+                            <label for="logo">School logo</label>
+                            <input id="logo" name="logo" type="file" accept="image/*"/>
+                            <span class="text-muted hint">PNG or JPG, square works best. Leave empty to keep the current logo.</span>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Save branding</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Generate report cards -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Generate report card</h2>
+                <span class="text-muted" th:if="${teacherClass != null}" th:text="'Your class: ' + ${teacherClass}"></span>
+            </div>
+            <div class="filter-bar">
+                <form method="get" th:action="@{/reportcards}" class="filter-form">
+                    <div class="filter-group" sec:authorize="hasRole('admin')">
+                        <label for="classFilter">Class</label>
+                        <select id="classFilter" name="classFilter" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == classQuery}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="nameFilter">Student name</label>
+                        <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Search by name"/>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+                    <a th:href="@{/reportcards}" class="btn btn-ghost btn-sm" th:if="${classQuery != null and !#strings.isEmpty(classQuery) or !#strings.isEmpty(name)}">Clear</a>
+                </form>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Admission No</th>
+                        <th>Class</th>
+                        <th>Attendance</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="s : ${students}">
+                        <td class="font-medium" th:text="${s.fullName}"></td>
+                        <td th:text="${s.admissionNo}" class="text-muted"></td>
+                        <td th:text="${s.classDisplay}" class="text-muted"></td>
+                        <td class="text-muted">
+                            <a th:href="@{/attendance?name={n}(n=${s.fullName})}" th:text="'View attendance'"
+                               class="link">View attendance</a>
+                        </td>
+                        <td>
+                            <form th:action="@{/reportcards/{id}/pdf(id=${s.id})}" method="get" class="reportgen-row">
+                                <input type="text" name="term" list="termOptions"
+                                       placeholder="e.g. Term 1 2026" class="term-input"
+                                       th:value="${defaultTerm}" required/>
+                                <button class="btn btn-primary btn-sm" type="submit">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+                                    PDF
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(students)}">
+                        <td colspan="5" class="empty-cell">No students found.</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <datalist id="termOptions">
+                    <option th:each="f : ${allTerms}" th:value="${f}"></option>
+                </datalist>
+            </div>
+        </div>
+    </main>
+</div>
+<style>
+    .brand-row { display: flex; gap: 20px; flex-wrap: wrap; }
+    .brand-preview { flex: 0 0 110px; }
+    .brand-fields { flex: 1 1 320px; }
+    .logo-frame { width: 100px; height: 100px; border: 2px dashed #cbd5e1; border-radius: 8px;
+                  display: flex; align-items: center; justify-content: center; overflow: hidden;
+                  background: #f8fafc; color: #94a3b8; font-size: 12px; }
+    .logo-frame img { width: 100%; height: 100%; object-fit: contain; }
+    .hint { font-size: 12px; color: #64748b; display: block; margin-top: 4px; }
+    .reportgen-row { display: flex; gap: 6px; }
+    .term-input { width: 160px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .link { color: var(--primary, #2563eb); text-decoration: none; font-size: 13px; }
+</style>
+</body>
+</html>

@@ -32,6 +32,9 @@ public class Student {
     private String parentEmail;
     private LocalDate dateOfBirth;
 
+    /** Subjects the student studies, stored comma-separated (e.g. "Mathematics, Science"). */
+    private String subjects;
+
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
@@ -73,6 +76,9 @@ public class Student {
 
     public LocalDate getDateOfBirth() { return dateOfBirth; }
     public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getSubjects() { return subjects; }
+    public void setSubjects(String subjects) { this.subjects = subjects; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

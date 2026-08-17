@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.w3.org/1999/xhtml"
+      lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>Report Card</title>
+    <style type="text/css">
+        @page { size: 8.5in 11in; margin: 14mm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+        .bordered { border-collapse: collapse; width: 100%; }
+        .bordered th, .bordered td { border: 1px solid #444; padding: 4px 6px; }
+        .bordered th { background: #eee; text-align: left; }
+        .center { text-align: center; }
+        .header td { padding: 6px; }
+        .school-name { font-size: 20px; font-weight: bold; }
+        .school-addr { font-size: 10px; color: #555; }
+        .title { font-size: 15px; font-weight: bold; letter-spacing: 3px; }
+        .info td { padding: 3px 6px; }
+        .stat td { text-align: center; font-size: 12px; padding: 5px; }
+        .section-title { font-size: 12px; font-weight: bold; margin: 10px 0 4px 0; }
+        .sign td { padding: 3px 0 3px 0; }
+        .spacer { height: 34px; }
+        .hr { border-bottom: 1px solid #000; }
+        .marks-total td { background: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+<!-- School header with logo + name -->
+<table class="bordered header"><tr>
+    <td width="110" class="center">
+        <img th:if="${logoDataUri}" th:src="${logoDataUri}" width="80" height="80" alt="School logo"/>
+    </td>
+    <td>
+        <div class="school-name" th:text="${settings.schoolName}">School Name</div>
+        <div class="school-addr" th:text="${settings.address}">Address / contact</div>
+        <div style="height:6px"></div>
+        <div class="title">REPORT CARD</div>
+        <div th:text="'Academic ' + ${term}">Term</div>
+    </td>
+    <td width="140" class="center" th:if="${logoDataUri == null}">
+        <div style="font-size:11px;color:#888;">(School logo not uploaded)</div>
+    </td>
+</tr></table>
+
+<!-- Student information -->
+<div class="section-title">Student Information</div>
+<table class="bordered">
+    <tr>
+        <td width="18%" class="info"><b>Name</b></td>
+        <td class="info" th:text="${student.fullName}">Student Name</td>
+        <td width="18%" class="info"><b>Admission No</b></td>
+        <td width="22%" class="info" th:text="${student.admissionNo}">S1001</td>
+    </tr>
+    <tr>
+        <td class="info"><b>Class</b></td>
+        <td class="info" th:text="${student.classDisplay}">6-A</td>
+        <td class="info"><b>Parent / Guardian</b></td>
+        <td class="info" th:text="${student.parentName ?: '—'}">Parent</td>
+    </tr>
+    <tr>
+        <td class="info"><b>Term</b></td>
+        <td class="info" th:text="${term}">Term 1 2026</td>
+        <td class="info"><b>Issued on</b></td>
+        <td class="info" th:text="${#temporals.format(today, 'dd MMM yyyy')}">01 Aug 2026</td>
+    </tr>
+</table>
+
+<!-- Marks / performance table -->
+<div class="section-title">Subject-wise Performance</div>
+<table class="bordered">
+    <thead><tr>
+        <th width="45%">Subject</th>
+        <th class="center">Max. Marks</th>
+        <th class="center">Marks Obtained</th>
+        <th class="center">Percentage</th>
+        <th class="center">Grade</th>
+    </tr></thead>
+    <tbody>
+    <tr th:each="row : ${subjectRows}">
+        <td th:text="${row.subject}">Mathematics</td>
+        <td class="center" th:text="${#numbers.formatDecimal(row.maxMarks, 0, 0)}">100</td>
+        <td class="center" th:text="${row.obtained != null ? #numbers.formatDecimal(row.obtained, 0, 0) : '—'}">—</td>
+        <td class="center" th:text="${row.percentage != null ? row.percentage + '%' : '—'}">—</td>
+        <td class="center" th:text="${row.grade}">—</td>
+    </tr>
+    <tr class="marks-total" th:if="${hasMarks}">
+        <td><b>Total</b></td>
+        <td class="center" th:text="${#numbers.formatDecimal(marksMax, 0, 0)}">0</td>
+        <td class="center"><b th:text="${#numbers.formatDecimal(marksTotal, 0, 0)}">0</b></td>
+        <td class="center"><b th:text="${marksPct + '%'}">0%</b></td>
+        <td class="center" th:text="${totalGrade}">—</td>
+    </tr>
+    <tr th:if="${not hasMarks}">
+        <td colspan="5" style="text-align:center;color:#666;">
+            Marks for this term have not been recorded yet.
+        </td>
+    </tr>
+    </tbody>
+</table>
+<div style="font-size:9px;color:#666;margin-top:3px;">
+    Grades: A+ ≥ 90, A ≥ 80, B+ ≥ 70, B ≥ 60, C ≥ 50, D ≥ 40, F &lt; 40.
+</div>
+
+<!-- Attendance summary -->
+<div class="section-title">Attendance Summary</div>
+<table class="bordered stat">
+    <tr>
+        <th>Days Present</th>
+        <th>Days Absent</th>
+        <th>Late</th>
+        <th>Attendance Rate</th>
+    </tr>
+    <tr>
+        <td th:text="${presentCount}">0</td>
+        <td th:text="${absentCount}">0</td>
+        <td th:text="${lateCount}">0</td>
+        <td th:text="${attendanceRate + '%'}">0%</td>
+    </tr>
+</table>
+
+<!-- Fee summary (if a fee record exists for the term) -->
+<div th:if="${fee != null}">
+    <div class="section-title">Fee Status — <span th:text="${term}">Term</span></div>
+    <table class="bordered stat">
+        <tr>
+            <th>Amount Due</th>
+            <th>Amount Paid</th>
+            <th>Outstanding</th>
+            <th>Status</th>
+        </tr>
+        <tr>
+            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.amountDue, 0, 'COMMA', 0, 'POINT')}">0</td>
+            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.amountPaid, 0, 'COMMA', 0, 'POINT')}">0</td>
+            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.outstanding, 0, 'COMMA', 0, 'POINT')}">0</td>
+            <td th:text="${fee.status}" th:classappend="'fee-status'">status</td>
+        </tr>
+    </table>
+</div>
+
+<!-- Remarks -->
+<div class="section-title">Remarks</div>
+<table class="bordered">
+    <tr><td class="info">Class Teacher</td></tr>
+    <tr><td style="height:54px;"></td></tr>
+</table>
+
+<!-- Signatures -->
+<div class="spacer"></div>
+<table class="bordered sign">
+    <tr>
+        <td class="center">___________</td>
+        <td class="center">___________</td>
+        <td class="center">___________</td>
+    </tr>
+    <tr>
+        <td class="center"><b>Class Teacher</b></td>
+        <td class="center"><b>Principal</b></td>
+        <td class="center"><b>Parent Signature</b></td>
+    </tr>
+</table>
+
+</body>
+</html>

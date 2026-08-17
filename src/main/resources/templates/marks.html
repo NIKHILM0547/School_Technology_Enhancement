@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Marks')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('marks')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Academics</div>
+                <h1>Marks</h1>
+                <div class="text-muted" sec:authorize="hasAnyRole('admin','teacher')">
+                    Total and percentage are calculated automatically.
+                </div>
+            </div>
+            <div class="page-actions" sec:authorize="hasAnyRole('admin','teacher')">
+                <a th:href="@{/marks/enter}" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Enter marks
+                </a>
+            </div>
+        </header>
+
+        <div th:if="${param.saved}" class="flash flash-success" style="margin-bottom:16px;">Marks saved.</div>
+
+        <!-- Filters (admins only pick class; teachers see only their class) -->
+        <div class="card" sec:authorize="hasAnyRole('admin','teacher')">
+            <div class="filter-bar">
+                <form method="get" th:action="@{/marks}" class="filter-form">
+                    <div class="filter-group" sec:authorize="hasRole('admin')">
+                        <label for="classFilter">Class</label>
+                        <select id="classFilter" name="classFilter" onchange="this.form.submit()">
+                            <option value="">All</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == classQuery}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="term">Term</label>
+                        <select id="term" name="term" onchange="this.form.submit()">
+                            <option th:each="t : ${terms}" th:value="${t}" th:text="${t}" th:selected="${t == term}"></option>
+                            <option th:if="${terms.isEmpty()}" th:value="${defaultTerm}" th:text="${defaultTerm}"></option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="nameFilter">Student name</label>
+                        <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Search by name"/>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Search</button>
+                    <a th:href="@{/marks}" class="btn btn-ghost btn-sm">Clear</a>
+                </form>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Admission No</th>
+                        <th>Class</th>
+                        <th class="center">Subjects</th>
+                        <th class="center">Total</th>
+                        <th class="center">Max</th>
+                        <th class="center">Percentage</th>
+                        <th class="center">Grade</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${rows}">
+                        <td class="font-medium" th:text="${r.name}"></td>
+                        <td th:text="${r.admissionNo}" class="text-muted"></td>
+                        <td th:text="${r.classDisplay}" class="text-muted"></td>
+                        <td class="center" th:text="${r.subjects}"></td>
+                        <td class="center font-medium" th:text="${#numbers.formatDecimal(r.total, 0, 1)}"></td>
+                        <td class="center text-muted" th:text="${#numbers.formatDecimal(r.maxTotal, 0, 1)}"></td>
+                        <td class="center font-medium" th:text="${r.percentage} + '%'"></td>
+                        <td class="center">
+                            <span class="fee-status" th:class="${r.grade != 'F'} ? 'fee-paid' : 'fee-overdue'" th:text="${r.grade}"></span>
+                        </td>
+                        <td>
+                            <a th:href="@{/marks/enter(classFilter=${r.classDisplay}, term=${r.term})}" class="link">Edit marks</a>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(rows)}">
+                        <td colspan="9" class="empty-cell">No marks recorded for this term yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+<style>
+    .link { color: var(--primary, #2563eb); text-decoration: none; font-size: 13px; }
+</style>
+</body>
+</html>

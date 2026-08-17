@@ -54,8 +54,7 @@
                         <th>Subject</th>
                         <th>Class Teacher</th>
                         <th>Classes</th>
-                        <th>Actions</th>
-                    </tr>
+                        <th>Actions</th>                    </tr>
                     </thead>
                     <tbody>
                     <tr th:each="u : ${users}">
@@ -64,13 +63,13 @@
                         <td th:text="${u.mobile ?: '—'}" class="text-muted"></td>
                         <td th:text="${u.role.name() == 'student' ? (u.admissionNo ?: '—') : '—'}" class="text-muted"></td>
                         <td><span class="badge" th:text="${u.role}"></span></td>
-                        <td th:text="${u.role.name() == 'teacher' ? u.subject : '—'}" class="text-muted"></td>
+                        <td th:text="${u.role.name() == 'teacher' ? u.subject : (u.role.name() == 'student' ? (u.subjects ?: '—') : '—')}" class="text-muted"></td>
                         <td th:text="${u.role.name() == 'teacher' ? u.classTeacherOf : '—'}" class="text-muted"></td>
                         <td th:text="${u.assignedClasses ?: '—'}" class="text-muted"></td>
                         <td>
                             <div class="flex gap-2" th:if="${u.role.name() != 'admin'}">
                                 <button class="btn btn-ghost btn-sm"
-                                        th:attr="data-id=${u.id},data-name=${u.name},data-email=${u.email},data-mobile=${u.mobile},data-role=${u.role},data-subject=${u.subject},data-classes=${u.assignedClasses},data-cteacher=${u.classTeacherOf}"
+                                        th:attr="data-id=${u.id},data-name=${u.name},data-email=${u.email},data-mobile=${u.mobile},data-role=${u.role},data-subject=${u.subject},data-subjects=${u.subjects},data-classes=${u.assignedClasses},data-cteacher=${u.classTeacherOf}"
                                         onclick="editUser(this)">Edit</button>
                                 <form th:action="@{/users/{id}/delete(id=${u.id})}" method="post"
                                       onsubmit="return confirm('Delete this user?');">
@@ -155,6 +154,17 @@
                         <input id="studentAdmissionNo" name="admissionNo" th:field="*{admissionNo}"
                                placeholder="e.g. S1004 — leave blank to auto-generate"/>
                     </div>
+                    <div class="form-group full-width class-field-student" style="display:none;">
+                        <label>Subjects</label>
+                        <div class="subject-grid" id="studentSubjectsGrid">
+                            <label th:each="s : ${subjects}" class="subject-chip">
+                                <input type="checkbox" value="true" th:attr="data-subject=${s}"/>
+                                <span th:text="${s}"></span>
+                            </label>
+                        </div>
+                        <input type="hidden" id="studentSubjects" name="subjects" th:value="*{subjects}"/>
+                        <span class="text-muted hint">Tick the subjects this student studies.</span>
+                    </div>
                     <div class="form-error" th:if="${#fields.hasAnyErrors()}" th:each="e : ${#fields.allErrors()}" th:text="${e}">Error</div>
                 </div>
             </div>
@@ -225,6 +235,17 @@
                             <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
                         </select>
                     </div>
+                    <div class="form-group full-width edit-class-field-student" style="display:none;">
+                        <label>Subjects</label>
+                        <div class="subject-grid" id="editStudentSubjectsGrid">
+                            <label th:each="s : ${subjects}" class="subject-chip">
+                                <input type="checkbox" value="true" th:attr="data-subject=${s}"/>
+                                <span th:text="${s}"></span>
+                            </label>
+                        </div>
+                        <input type="hidden" id="editStudentSubjects" name="subjects"/>
+                        <span class="text-muted hint">Tick the subjects this student studies.</span>
+                    </div>
                 </div>
             </div>
             <div class="modal-actions">
@@ -234,6 +255,15 @@
         </form>
     </div>
 </div>
+
+<style>
+    .subject-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .subject-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #cbd5e1;
+                    border-radius: 999px; padding: 4px 10px; font-size: 13px; cursor: pointer; background: #f8fafc; }
+    .subject-chip input:checked ~ span { color: #4338ca; font-weight: 600; }
+    .subject-chip:has(input:checked) { background: #e0e7ff; border-color: #6366f1; }
+    .hint { font-size: 12px; color: #64748b; display: block; margin-top: 4px; }
+</style>
 
 <script>
 function showAddModal() {
@@ -263,13 +293,56 @@ function toggleTeacherFields() {
     if (role === 'student') {
         hiddenInput.setAttribute('name', 'assignedClasses');
         document.getElementById('subject').removeAttribute('name');
+        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').setAttribute('name', 'subjects');
+        wireStudentSubjectChecks('studentSubjectsGrid', 'studentSubjects');
     } else if (role === 'teacher') {
         hiddenInput.setAttribute('name', 'assignedClasses');
         document.getElementById('subject').setAttribute('name', 'subject');
+        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
     } else {
         hiddenInput.removeAttribute('name');
         document.getElementById('subject').removeAttribute('name');
+        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
     }
+}
+
+function wireStudentSubjectChecks(gridId, hiddenId) {
+    var grid = document.getElementById(gridId);
+    if (!grid) return;
+    var checkboxes = grid.querySelectorAll('input[type=checkbox]');
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].hasAttribute('data-wired')) continue;
+        checkboxes[i].setAttribute('data-wired', '1');
+        checkboxes[i].addEventListener('change', function() { collectStudentSubjects(gridId, hiddenId); });
+    }
+    collectStudentSubjects(gridId, hiddenId);
+}
+
+function collectStudentSubjects(gridId, hiddenId) {
+    var grid = document.getElementById(gridId);
+    var hidden = document.getElementById(hiddenId);
+    if (!grid || !hidden) return;
+    var selected = [];
+    var boxes = grid.querySelectorAll('input[type=checkbox]:checked');
+    for (var i = 0; i < boxes.length; i++) {
+        selected.push(boxes[i].getAttribute('data-subject'));
+    }
+    hidden.value = selected.join(', ');
+}
+
+function precheckStudentSubjects(gridId, hiddenId, commaList) {
+    var grid = document.getElementById(gridId);
+    if (!grid) return;
+    var set = {};
+    if (commaList) {
+        commaList.split(',').forEach(function(s) { if (s.trim()) set[s.trim()] = true; });
+    }
+    var boxes = grid.querySelectorAll('input[type=checkbox]');
+    for (var i = 0; i < boxes.length; i++) {
+        var subj = boxes[i].getAttribute('data-subject');
+        boxes[i].checked = !!set[subj];
+    }
+    collectStudentSubjects(gridId, hiddenId);
 }
 
 function clearTeacherSelections() {
@@ -282,6 +355,7 @@ function clearTeacherSelections() {
     if (studentSelect) studentSelect.value = '';
     var admissionInput = document.getElementById('studentAdmissionNo');
     if (admissionInput) admissionInput.value = '';
+    precheckStudentSubjects('studentSubjectsGrid', 'studentSubjects', '');
 }
 
 function updateStudentClassInput() {
@@ -346,6 +420,10 @@ function editUser(btn) {
     }
 
     document.getElementById('editClassTeacherOf').value = cteacher;
+
+    wireStudentSubjectChecks('editStudentSubjectsGrid', 'editStudentSubjects');
+    var studentSubjects = btn.getAttribute('data-subjects') || '';
+    precheckStudentSubjects('editStudentSubjectsGrid', 'editStudentSubjects', studentSubjects);
 
     var subjectArr = subject ? subject.split(', ').filter(function(s) { return s.trim(); }) : [];
     var classArr = classes ? classes.split(', ').filter(function(c) { return c.trim(); }) : [];

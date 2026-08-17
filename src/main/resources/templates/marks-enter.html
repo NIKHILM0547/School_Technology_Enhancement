@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Enter marks')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('marks')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Academics</div>
+                <h1>Enter marks</h1>
+                <div class="text-muted" th:text="'Class ' + (${classQuery == null or #strings.isEmpty(classQuery)} ? 'All classes' : ${classQuery}) + ' | ' + ${selectedSubject} + ' | ' + ${selectedTerm}">
+                    Class | Subject | Term
+                </div>
+            </div>
+            <div class="page-actions">
+                <a th:href="@{/marks}" class="btn btn-ghost">Back to marks</a>
+            </div>
+        </header>
+
+        <div th:if="${param.saved}" class="flash flash-success" style="margin-bottom:16px;">
+            Marks saved for <strong th:text="${selectedSubject}"></strong> (<span th:text="${selectedTerm}"></span>).
+        </div>
+
+        <!-- Selection form: class / term / subject / max marks -->
+        <div class="card">
+            <form method="get" th:action="@{/marks/enter}" class="filter-form">
+                <div class="filter-group" sec:authorize="hasRole('admin')">
+                    <label for="classFilter">Class</label>
+                    <select id="classFilter" name="classFilter" onchange="this.form.submit()">
+                        <option value="">All classes</option>
+                        <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == classQuery}"></option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="term">Term</label>
+                    <select id="term" name="term" onchange="this.form.submit()">
+                        <option th:each="t : ${terms}" th:value="${t}" th:text="${t}" th:selected="${t == selectedTerm}"></option>
+                        <option th:if="${terms.isEmpty()}" th:value="${defaultTerm}" th:text="${defaultTerm}"></option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="subject">Subject</label>
+                    <input id="subject" name="subject" type="text" list="subjectOptions"
+                           th:value="${selectedSubject}" onchange="this.form.submit()" class="term-input"/>
+                    <datalist id="subjectOptions">
+                        <option th:each="s : ${subjects}" th:value="${s}"></option>
+                    </datalist>
+                </div>
+                <button class="btn btn-primary btn-sm" type="submit">Load</button>
+            </form>
+        </div>
+
+        <!-- Marks grid -->
+        <form th:action="@{/marks/save}" method="post" id="marksForm">
+            <input type="hidden" name="term" th:value="${selectedTerm}"/>
+            <input type="hidden" name="subject" th:value="${selectedSubject}"/>
+            <input type="hidden" name="classFilter" th:value="${classQuery}"/>
+
+            <div class="card">
+                <div class="table-wrapper">
+                    <table class="table" id="marksTable">
+                        <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Admission No</th>
+                            <th>Class</th>
+                            <th class="center">Marks obtained</th>
+                            <th class="center">Max marks</th>
+                            <th class="center">Percentage</th>
+                            <th class="center">Grade</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${rows}">
+                            <td class="font-medium" th:text="${r.name}"></td>
+                            <td th:text="${r.admissionNo}" class="text-muted"></td>
+                            <td th:text="${r.classDisplay}" class="text-muted"></td>
+                            <td class="center">
+                                <input type="hidden" name="studentIds" th:value="${r.studentId}"/>
+                                <input type="number" name="obtained" step="0.5" min="0" class="marks-input obtained-input"
+                                       th:value="${r.obtained}" placeholder="—" data-name="${r.name}" oninput="recalcRow(this)"/>
+                            </td>
+                            <td class="center">
+                                <input type="number" name="maxMarks" step="0.5" min="1" class="marks-input max-input"
+                                       th:value="${r.maxMarks}" th:attr="data-row='${r.studentId}'" oninput="recalcAll()"/>
+                            </td>
+                            <td class="center pct-cell">—</td>
+                            <td class="center grade-cell">—</td>
+                            <td>
+                                <button type="submit" th:if="${r.markId != null}"
+                                        th:form="'deleteForm_' + ${r.markId}"
+                                        onclick="return confirm('Remove this mark?')"
+                                        class="btn btn-ghost btn-sm">Clear</button>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(rows)}">
+                            <td colspan="8" class="empty-cell">No students found for this class.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="btn btn-primary" type="submit" th:if="${not #lists.isEmpty(rows)}" style="margin-top:4px;">
+                Save marks
+            </button>
+        </form>
+
+        <!-- Out-of-band delete forms referenced by the Clear buttons via the form attribute -->
+        <form th:each="r : ${rows}" th:if="${r.markId != null}"
+              th:id="'deleteForm_' + ${r.markId}" th:action="@{/marks/{id}/delete(id=${r.markId})}"
+              method="post" class="oob-form">
+            <input type="hidden" name="term" th:value="${selectedTerm}"/>
+            <input type="hidden" name="subject" th:value="${selectedSubject}"/>
+            <input type="hidden" name="classFilter" th:value="${classQuery}"/>
+        </form>
+    </main>
+</div>
+<style>
+    .marks-input { width: 90px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; text-align: center; }
+    .term-input { width: 170px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+    .pct-cell, .grade-cell { font-weight: 600; }
+    .oob-form { display: none; }
+</style>
+<script>
+function recalcRow(input) {
+    var tr = input.closest('tr');
+    var obtained = parseFloat(input.value);
+    var maxInput = tr.querySelector('.max-input');
+    var max = parseFloat(maxInput ? maxInput.value : 0);
+    var pctCell = tr.querySelector('.pct-cell');
+    var gradeCell = tr.querySelector('.grade-cell');
+    if (isNaN(obtained) || isNaN(max) || max <= 0) {
+        pctCell.textContent = '—';
+        gradeCell.textContent = '—';
+        return;
+    }
+    var pct = Math.round(obtained / max * 1000) / 10;
+    pctCell.textContent = pct + '%';
+    gradeCell.textContent = grade(pct);
+}
+function recalcAll() {
+    var inputs = document.querySelectorAll('.obtained-input');
+    inputs.forEach(function(i) { recalcRow(i); });
+}
+function grade(p) {
+    if (p >= 90) return 'A+';
+    if (p >= 80) return 'A';
+    if (p >= 70) return 'B+';
+    if (p >= 60) return 'B';
+    if (p >= 50) return 'C';
+    if (p >= 40) return 'D';
+    return 'F';
+}
+document.addEventListener('DOMContentLoaded', recalcAll);
+</script>
+</body>
+</html>

@@ -36,6 +36,11 @@ public class SecurityConfig {
                 .requestMatchers("/attendance/**").hasAnyRole("admin", "teacher", "student")
                 // Notes: all authenticated roles; access control enforced in the controller
                 .requestMatchers("/notes/**").hasAnyRole("admin", "teacher", "student")
+                // Report cards: admins manage settings, admins + teachers generate PDFs
+                .requestMatchers("/reportcards/settings/logo").hasAnyRole("admin", "teacher")
+                .requestMatchers("/reportcards/**").hasAnyRole("admin", "teacher")
+                // Marks: admins + teachers enter marks, students view their own
+                .requestMatchers("/marks/**").hasAnyRole("admin", "teacher", "student")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

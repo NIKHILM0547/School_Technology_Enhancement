@@ -39,6 +39,11 @@ public class User {
     @Column(nullable = true)
     private String classTeacherOf;
 
+    /** Subjects a student studies, comma-separated (e.g. "Mathematics, Science").
+     *  Mirrored onto the linked Student record so report cards can use them. */
+    @Column(nullable = true)
+    private String subjects;
+
     @NotBlank
     @Pattern(regexp = "^[6-9]\\d{9}$", message = "Invalid mobile number (must be 10 digits starting with 6-9)")
     @Column(nullable = false)
@@ -83,6 +88,9 @@ public class User {
 
     public String getClassTeacherOf() { return classTeacherOf; }
     public void setClassTeacherOf(String classTeacherOf) { this.classTeacherOf = classTeacherOf; }
+
+    public String getSubjects() { return subjects; }
+    public void setSubjects(String subjects) { this.subjects = subjects; }
 
     public String getAdmissionNo() { return admissionNo; }
     public void setAdmissionNo(String admissionNo) { this.admissionNo = admissionNo; }

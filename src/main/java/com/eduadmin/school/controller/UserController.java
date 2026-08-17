@@ -90,7 +90,9 @@ public class UserController {
     }
 
     @PostMapping("/new")
-    public String create(@ModelAttribute("newUser") User user, BindingResult result, Model model) {
+    public String create(@ModelAttribute("newUser") User user,
+                         @RequestParam(required = false) String subjects,
+                         BindingResult result, Model model) {
         boolean hasError = false;
 
         if (user.getName() == null || user.getName().isBlank()) {
@@ -142,6 +144,9 @@ public class UserController {
         }
         String rawPassword = user.getPassword();
         user.setPassword(passwordEncoder.encode(rawPassword));
+        if (user.getRole() == Role.student) {
+            user.setSubjects(normalizeSubjects(subjects));
+        }
         userRepository.save(user);
 
         if (user.getRole() == Role.student) {
@@ -169,6 +174,7 @@ public class UserController {
         student.setAdmissionNo(user.getAdmissionNo() != null && !user.getAdmissionNo().isBlank()
                 ? user.getAdmissionNo().trim()
                 : generateAdmissionNo());
+        student.setSubjects(user.getSubjects());
         student.setUser(user);
         studentRepository.save(student);
     }
@@ -180,6 +186,16 @@ public class UserController {
             if (!digits.isEmpty()) max = Math.max(max, Integer.parseInt(digits));
         }
         return "S" + (max + 1);
+    }
+
+    /** Clean a comma-separated multi-select: trims, drops blanks and dedupes. */
+    private String normalizeSubjects(String subjects) {
+        if (subjects == null || subjects.isBlank()) return null;
+        return java.util.Arrays.stream(subjects.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 
     @PostMapping("/{id}/delete")
@@ -197,6 +213,7 @@ public class UserController {
                          @RequestParam(required = false) String assignedClasses,
                          @RequestParam(required = false) String mobile,
                          @RequestParam(required = false) String classTeacherOf,
+                         @RequestParam(required = false) String subjects,
                          RedirectAttributes redirectAttributes) {
         User user = userRepository.findById(id).orElseThrow();
 
@@ -226,6 +243,13 @@ public class UserController {
         user.setAssignedClasses(assignedClasses);
         user.setMobile(mobile);
         user.setClassTeacherOf(classTeacherOf);
+        if (user.getRole() == Role.student) {
+            user.setSubjects(normalizeSubjects(subjects));
+            studentRepository.findByUser(user).ifPresent(s -> {
+                s.setSubjects(user.getSubjects());
+                studentRepository.save(s);
+            });
+        }
         userRepository.save(user);
         redirectAttributes.addFlashAttribute("success", "User updated successfully");
         return "redirect:/users";

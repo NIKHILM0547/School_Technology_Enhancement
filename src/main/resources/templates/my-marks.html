@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('My Marks')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('marks')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">My marks</div>
+                <h1>Marks</h1>
+                <div class="text-muted" th:text="'Class ' + ${student.classDisplay} + ' | Admission No: ' + ${student.admissionNo}">Class</div>
+            </div>
+        </header>
+
+        <div class="card" th:if="${#maps.isEmpty(terms)}">
+            <div class="card-header"><h2>Your marks</h2></div>
+            <div class="empty-cell">No marks recorded yet.</div>
+        </div>
+
+        <div class="card" th:each="termEntry : ${terms}">
+            <div class="card-header">
+                <h2 th:text="${termEntry.key}">Term</h2>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th class="center">Marks</th>
+                        <th class="center">Max</th>
+                        <th class="center">Percentage</th>
+                        <th class="center">Grade</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="m : ${termEntry.value}">
+                        <td class="font-medium" th:text="${m.subject}">Subject</td>
+                        <td class="center" th:text="${#numbers.formatDecimal(m.marksObtained, 0, 1)}"></td>
+                        <td class="center text-muted" th:text="${#numbers.formatDecimal(m.maxMarks, 0, 1)}"></td>
+                        <td class="center font-medium" th:text="${m.percentage} + '%'"></td>
+                        <td class="center">
+                            <span class="fee-status fee-paid" th:if="${m.percentage >= 50}">Pass</span>
+                            <span class="fee-status fee-overdue" th:unless="${m.percentage >= 50}">Fail</span>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(termEntry.value)}">
+                        <td colspan="5" class="empty-cell">No marks for this term.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

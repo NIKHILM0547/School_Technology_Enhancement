@@ -62,6 +62,19 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- PDF generation for report cards (XHTML -> PDF) -->
+        <dependency>
+            <groupId>org.xhtmlrenderer</groupId>
+            <artifactId>flying-saucer-pdf-openpdf</artifactId>
+            <version>9.1.22</version>
+        </dependency>
+        <!-- Lets ImageIO read WebP (and other) logos so they can be normalized to PNG for the PDF -->
+        <dependency>
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-webp</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
