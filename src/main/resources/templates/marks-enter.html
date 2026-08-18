@@ -9,8 +9,10 @@
             <div>
                 <div class="eyebrow">Academics</div>
                 <h1>Enter marks</h1>
-                <div class="text-muted" th:text="'Class ' + (${classQuery == null or #strings.isEmpty(classQuery)} ? 'All classes' : ${classQuery}) + ' | ' + ${selectedSubject} + ' | ' + ${selectedTerm}">
-                    Class | Subject | Term
+                <div class="text-muted">
+                    <span th:if="${student != null}"
+                          th:text="'Editing: ' + ${student.fullName} + ' (' + ${student.classDisplay} + ') — '"></span>
+                    <span th:text="${selectedSubject} + ' | ' + ${selectedTerm}"></span>
                 </div>
             </div>
             <div class="page-actions">
@@ -25,7 +27,8 @@
         <!-- Selection form: class / term / subject / max marks -->
         <div class="card">
             <form method="get" th:action="@{/marks/enter}" class="filter-form">
-                <div class="filter-group" sec:authorize="hasRole('admin')">
+                <input type="hidden" name="studentId" th:value="${studentId}" th:if="${studentId != null}"/>
+                <div class="filter-group" sec:authorize="hasRole('admin')" th:if="${student == null}">
                     <label for="classFilter">Class</label>
                     <select id="classFilter" name="classFilter" onchange="this.form.submit()">
                         <option value="">All classes</option>
@@ -41,11 +44,9 @@
                 </div>
                 <div class="filter-group">
                     <label for="subject">Subject</label>
-                    <input id="subject" name="subject" type="text" list="subjectOptions"
-                           th:value="${selectedSubject}" onchange="this.form.submit()" class="term-input"/>
-                    <datalist id="subjectOptions">
-                        <option th:each="s : ${subjects}" th:value="${s}"></option>
-                    </datalist>
+                    <select id="subject" name="subject" onchange="this.form.submit()">
+                        <option th:each="s : ${subjects}" th:value="${s}" th:text="${s}" th:selected="${s == selectedSubject}"></option>
+                    </select>
                 </div>
                 <button class="btn btn-primary btn-sm" type="submit">Load</button>
             </form>
@@ -56,6 +57,7 @@
             <input type="hidden" name="term" th:value="${selectedTerm}"/>
             <input type="hidden" name="subject" th:value="${selectedSubject}"/>
             <input type="hidden" name="classFilter" th:value="${classQuery}"/>
+            <input type="hidden" name="studentId" th:value="${studentId}" th:if="${studentId != null}"/>
 
             <div class="card">
                 <div class="table-wrapper">
@@ -114,6 +116,7 @@
             <input type="hidden" name="term" th:value="${selectedTerm}"/>
             <input type="hidden" name="subject" th:value="${selectedSubject}"/>
             <input type="hidden" name="classFilter" th:value="${classQuery}"/>
+            <input type="hidden" name="studentId" th:value="${studentId}" th:if="${studentId != null}"/>
         </form>
     </main>
 </div>

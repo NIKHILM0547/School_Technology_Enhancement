@@ -121,25 +121,6 @@
     </tr>
 </table>
 
-<!-- Fee summary (if a fee record exists for the term) -->
-<div th:if="${fee != null}">
-    <div class="section-title">Fee Status — <span th:text="${term}">Term</span></div>
-    <table class="bordered stat">
-        <tr>
-            <th>Amount Due</th>
-            <th>Amount Paid</th>
-            <th>Outstanding</th>
-            <th>Status</th>
-        </tr>
-        <tr>
-            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.amountDue, 0, 'COMMA', 0, 'POINT')}">0</td>
-            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.amountPaid, 0, 'COMMA', 0, 'POINT')}">0</td>
-            <td th:text="'Rs. ' + ${#numbers.formatDecimal(fee.outstanding, 0, 'COMMA', 0, 'POINT')}">0</td>
-            <td th:text="${fee.status}" th:classappend="'fee-status'">status</td>
-        </tr>
-    </table>
-</div>
-
 <!-- Remarks -->
 <div class="section-title">Remarks</div>
 <table class="bordered">

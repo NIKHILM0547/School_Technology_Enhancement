@@ -26,6 +26,8 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Renders the report card XHTML template via Thymeleaf and converts it to a
@@ -75,12 +77,14 @@ public class ReportCardService {
     }
 
     public List<String> distinctTerms() {
-        return feeRepository.findAll().stream()
-                .map(Fee::getTerm)
-                .filter(t -> t != null && !t.isBlank())
-                .distinct()
-                .sorted()
-                .toList();
+        // A term may exist only as marks (or only as fees); union both so the
+        // report card always offers the term a student actually has data for.
+        Set<String> terms = new TreeSet<>();
+        feeRepository.findAll().forEach(f -> {
+            if (f.getTerm() != null && !f.getTerm().isBlank()) terms.add(f.getTerm());
+        });
+        terms.addAll(markRepository.findDistinctTerms());
+        return new ArrayList<>(terms);
     }
 
     /** Detects the real image MIME type from the file's magic bytes, so the
@@ -145,10 +149,6 @@ public class ReportCardService {
             model.addAttribute("absentCount", absent);
             model.addAttribute("lateCount", late);
             model.addAttribute("attendanceRate", rate);
-
-            feeRepository.findByStudent_IdAndTerm(student.getId(), term)
-                    .ifPresentOrElse(fee -> model.addAttribute("fee", fee),
-                            () -> model.addAttribute("fee", null));
 
             List<Mark> marks = markRepository.findByStudentAndTermOrderBySubject(student, term);
             Map<String, Mark> marksBySubject = new LinkedHashMap<>();

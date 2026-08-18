@@ -45,11 +45,20 @@
                         <label for="nameFilter">Student name</label>
                         <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Search by name"/>
                     </div>
+                    <div class="filter-group">
+                        <label for="subject">Subject</label>
+                        <select id="subject" name="subject" onchange="this.form.submit()">
+                            <option value="">All subjects</option>
+                            <option th:each="s : ${subjectOptions}" th:value="${s}" th:text="${s}" th:selected="${s == subjectQuery}"></option>
+                        </select>
+                    </div>
                     <button class="btn btn-ghost btn-sm" type="submit">Search</button>
                     <a th:href="@{/marks}" class="btn btn-ghost btn-sm">Clear</a>
                 </form>
             </div>
-            <div class="table-wrapper">
+
+            <!-- Summary grid: per-student totals for the term (no subject filter) -->
+            <div class="table-wrapper" th:if="${subjectQuery == null or #strings.isEmpty(subjectQuery)}">
                 <table class="table">
                     <thead>
                     <tr>
@@ -77,11 +86,52 @@
                             <span class="fee-status" th:class="${r.grade != 'F'} ? 'fee-paid' : 'fee-overdue'" th:text="${r.grade}"></span>
                         </td>
                         <td>
-                            <a th:href="@{/marks/enter(classFilter=${r.classDisplay}, term=${r.term})}" class="link">Edit marks</a>
+                            <a th:href="@{/marks/enter(studentId=${r.id}, term=${r.term})}" class="link">Edit marks</a>
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(rows)}">
                         <td colspan="9" class="empty-cell">No marks recorded for this term yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Per-subject view: one mark per student for the selected subject -->
+            <div class="table-wrapper" th:if="${subjectQuery != null and !#strings.isEmpty(subjectQuery)}">
+                <div class="text-muted" style="margin-bottom:8px;">
+                    Subject: <strong th:text="${subjectQuery}"></strong> | Term: <strong th:text="${term}"></strong>
+                </div>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Admission No</th>
+                        <th>Class</th>
+                        <th class="center">Marks obtained</th>
+                        <th class="center">Max marks</th>
+                        <th class="center">Percentage</th>
+                        <th class="center">Grade</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${subjectRows}">
+                        <td class="font-medium" th:text="${r.name}"></td>
+                        <td th:text="${r.admissionNo}" class="text-muted"></td>
+                        <td th:text="${r.classDisplay}" class="text-muted"></td>
+                        <td class="center font-medium" th:text="${r.obtained != null ? #numbers.formatDecimal(r.obtained, 0, 1) : '—'}"></td>
+                        <td class="center text-muted" th:text="${r.maxMarks != null ? #numbers.formatDecimal(r.maxMarks, 0, 1) : '—'}"></td>
+                        <td class="center font-medium" th:text="${r.percentage != null ? r.percentage + '%' : '—'}"></td>
+                        <td class="center">
+                            <span th:if="${r.grade != null}" class="fee-status" th:class="${r.grade != 'F'} ? 'fee-paid' : 'fee-overdue'" th:text="${r.grade}"></span>
+                            <span th:if="${r.grade == null}" class="text-muted">—</span>
+                        </td>
+                        <td>
+                            <a th:href="@{/marks/enter(studentId=${r.studentId}, term=${term}, subject=${subjectQuery})}" class="link">Edit marks</a>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(subjectRows)}">
+                        <td colspan="8" class="empty-cell">No students found for this subject.</td>
                     </tr>
                     </tbody>
                 </table>

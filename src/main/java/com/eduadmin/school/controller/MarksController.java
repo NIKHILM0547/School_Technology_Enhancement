@@ -15,7 +15,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/marks")
@@ -25,12 +24,25 @@ public class MarksController {
     private static final List<String> DEFAULT_SUBJECTS =
             List.of("Mathematics", "English", "Hindi", "Science", "Social Studies", "Computer Science");
 
+    /** All classes the school offers, used for the class filter dropdown. */
+    private static final List<String> CLASSES = List.of(
+            "1-A", "1-B", "1-C", "2-A", "2-B", "2-C",
+            "3-A", "3-B", "3-C", "4-A", "4-B", "4-C",
+            "5-A", "5-B", "5-C", "6-A", "6-B", "6-C",
+            "7-A", "7-B", "7-C", "8-A", "8-B", "8-C",
+            "9-A", "9-B", "9-C", "10-A", "10-B", "10-C",
+            "11-A", "11-B", "11-C", "12-A", "12-B", "12-C"
+    );
+
     public record MarkRow(Long markId, Long studentId, String name, String admissionNo, String classDisplay,
                           String subject, Double maxMarks, Double obtained, Double percentage) {}
 
     public record StudentSummary(Long id, String name, String admissionNo, String classDisplay,
                                  String term, int subjects, double total, double maxTotal,
                                  double percentage, String grade) {}
+
+    public record SubjectView(Long studentId, String name, String admissionNo, String classDisplay,
+                              Double maxMarks, Double obtained, Double percentage, String grade) {}
 
     private final StudentRepository studentRepository;
     private final MarkRepository markRepository;
@@ -44,12 +56,14 @@ public class MarksController {
         this.userRepository = userRepository;
     }
 
-    /** Main marks page. Admins/teachers get a per-student summary grid;
-     *  students get their own marks per term. */
+    /** Main marks page. Admins/teachers get a per-student summary grid (optionally
+     *  filtered to one subject via the subject dropdown); students get their own
+     *  marks per term. */
     @GetMapping
     public String index(@RequestParam(required = false) String term,
                         @RequestParam(required = false) String classFilter,
                         @RequestParam(required = false) String name,
+                        @RequestParam(required = false) String subject,
                         Model model) {
         User user = currentUser();
         if (user != null && user.getRole() == Role.student) {
@@ -59,13 +73,20 @@ public class MarksController {
 
         String termQuery = (term != null && !term.isBlank()) ? term.trim() : defaultTerm();
         List<Student> students = isTeacher
-                ? studentsOfClass(user)
+                ? teacherVisibleStudents(user)
                 : studentRepository.findAllByOrderByLastNameAsc();
 
         String classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
-        if (isTeacher) classQuery = "";
+        final String classFilterQuery = classQuery;
         String nameTrim = (name != null && !name.isBlank()) ? name.trim() : "";
         String nameQuery = nameTrim.toLowerCase();
+        String subjectQuery = (subject != null && !subject.isBlank()) ? subject.trim() : "";
+
+        // Students after the class + name filters.
+        List<Student> scope = students.stream()
+                .filter(s -> classFilterQuery.isEmpty() || classFilterQuery.equals(s.getClassDisplay()))
+                .filter(s -> nameQuery.isEmpty() || s.getFullName().toLowerCase().contains(nameQuery))
+                .toList();
 
         Map<Long, List<Mark>> marksByStudent = new HashMap<>();
         if (!students.isEmpty()) {
@@ -76,9 +97,7 @@ public class MarksController {
         }
 
         List<StudentSummary> rows = new ArrayList<>();
-        for (Student s : students) {
-            if (!classQuery.isEmpty() && !classQuery.equals(s.getClassDisplay())) continue;
-            if (!nameQuery.isEmpty() && !s.getFullName().toLowerCase().contains(nameQuery)) continue;
+        for (Student s : scope) {
             List<Mark> ms = marksByStudent.getOrDefault(s.getId(), List.of());
             double total = ms.stream().mapToDouble(Mark::getMarksObtained).sum();
             double maxTotal = ms.stream().mapToDouble(Mark::getMaxMarks).sum();
@@ -88,13 +107,49 @@ public class MarksController {
         }
         rows.sort(Comparator.comparing(StudentSummary::name));
 
+        // Subjects the filtered students actually have marks for, plus the defaults.
+        List<String> subjectOptions = new ArrayList<>();
+        if (!scope.isEmpty()) {
+            subjectOptions.addAll(markRepository.findDistinctSubjectsByStudentIds(
+                    scope.stream().map(Student::getId).toList()));
+        }
+        for (String d : DEFAULT_SUBJECTS) {
+            if (!subjectOptions.contains(d)) subjectOptions.add(d);
+        }
+
+        // Per-subject view: one row per student showing their mark for the selected subject.
+        List<SubjectView> subjectRows = new ArrayList<>();
+        if (!subjectQuery.isEmpty()) {
+            Map<Long, Mark> marksBySubject = new HashMap<>();
+            if (!scope.isEmpty()) {
+                for (Mark m : markRepository.findByStudentIdsAndSubjectAndTerm(
+                        scope.stream().map(Student::getId).toList(), subjectQuery, termQuery)) {
+                    marksBySubject.put(m.getStudent().getId(), m);
+                }
+            }
+            for (Student s : scope) {
+                Mark m = marksBySubject.get(s.getId());
+                Double pct = m != null ? m.getPercentage() : null;
+                subjectRows.add(new SubjectView(s.getId(), s.getFullName(), s.getAdmissionNo(),
+                        s.getClassDisplay(),
+                        m != null ? m.getMaxMarks() : null,
+                        m != null ? m.getMarksObtained() : null,
+                        pct,
+                        m != null ? gradeFor(pct) : null));
+            }
+            subjectRows.sort(Comparator.comparing(SubjectView::name));
+        }
+
         model.addAttribute("rows", rows);
+        model.addAttribute("subjectRows", subjectRows);
+        model.addAttribute("subjectOptions", subjectOptions);
+        model.addAttribute("subjectQuery", subjectQuery);
         model.addAttribute("terms", markRepository.findDistinctTerms());
         model.addAttribute("defaultTerm", defaultTerm());
         model.addAttribute("term", termQuery);
         model.addAttribute("classQuery", classQuery);
         model.addAttribute("name", nameTrim);
-        model.addAttribute("classes", studentRepository.findDistinctClassDisplay());
+        model.addAttribute("classes", isTeacher ? teachableClassOptions(user) : CLASSES);
         model.addAttribute("isTeacher", isTeacher);
         model.addAttribute("teacherClass", isTeacher && user != null ? user.getClassTeacherOf() : null);
         model.addAttribute("activePage", "marks");
@@ -102,20 +157,36 @@ public class MarksController {
     }
 
     /** Entry screen: pick class/term/subject, then enter one mark per student.
-     *  Total and percentage are computed automatically. */
+     *  With a studentId only that student is shown (per-student edit); otherwise
+     *  the whole class grid is shown. Total and percentage are computed automatically. */
     @GetMapping("/enter")
     public String enter(@RequestParam(required = false) String classFilter,
                         @RequestParam(required = false) String term,
                         @RequestParam(required = false) String subject,
+                        @RequestParam(required = false) Long studentId,
                         Model model) {
         User user = currentUser();
         boolean isTeacher = user != null && user.getRole() == Role.teacher;
-        List<Student> students = isTeacher
-                ? studentsOfClass(user)
-                : studentRepository.findAllByOrderByLastNameAsc();
 
-        String classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
-        if (isTeacher) classQuery = "";
+        List<Student> students;
+        String classQuery;
+        Student singleStudent = null;
+        if (studentId != null) {
+            final Student found = studentRepository.findById(studentId).orElse(null);
+            singleStudent = found;
+            students = found != null ? List.of(found) : List.of();
+            classQuery = found != null ? found.getClassDisplay() : "";
+            if (isTeacher && found != null
+                    && !teacherVisibleStudents(user).stream().anyMatch(s -> s.getId().equals(found.getId()))) {
+                return "redirect:/marks";
+            }
+        } else {
+            students = isTeacher
+                    ? teacherVisibleStudents(user)
+                    : studentRepository.findAllByOrderByLastNameAsc();
+            classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
+        }
+
         String termQuery = (term != null && !term.isBlank()) ? term.trim() : defaultTerm();
         String subjectQuery = (subject != null && !subject.isBlank()) ? subject.trim() : DEFAULT_SUBJECTS.get(0);
 
@@ -131,16 +202,37 @@ public class MarksController {
         }
         rows.sort(Comparator.comparing(MarkRow::name));
 
+        // Subjects for the students being shown (their recorded subjects + defaults).
+        List<Long> ids = students.stream().map(Student::getId).toList();
+        List<String> subjectOptions = new ArrayList<>();
+        if (!ids.isEmpty()) {
+            subjectOptions.addAll(markRepository.findDistinctSubjectsByStudentIds(ids));
+        }
+        for (String d : DEFAULT_SUBJECTS) {
+            if (!subjectOptions.contains(d)) subjectOptions.add(d);
+        }
+        // Teachers may only enter marks for subjects they teach — except in their
+        // own class-teacher class, where any subject is allowed.
+        if (isTeacher && user != null
+                && (classQuery.isEmpty() || !classQuery.equals(user.getClassTeacherOf()))) {
+            Set<String> taught = teacherSubjects(user);
+            subjectOptions.removeIf(s -> !taught.contains(s));
+            if (subjectOptions.isEmpty()) {
+                subjectOptions.addAll(taught.isEmpty() ? DEFAULT_SUBJECTS : taught);
+            }
+        }
+
         model.addAttribute("rows", rows);
-        model.addAttribute("subjects", markRepository.findDistinctSubjects().isEmpty()
-                ? DEFAULT_SUBJECTS : mergedSubjects());
+        model.addAttribute("subjects", subjectOptions);
         model.addAttribute("selectedSubject", subjectQuery);
         model.addAttribute("terms", markRepository.findDistinctTerms());
         model.addAttribute("defaultTerm", defaultTerm());
         model.addAttribute("selectedTerm", termQuery);
         model.addAttribute("classQuery", classQuery);
-        model.addAttribute("classes", studentRepository.findDistinctClassDisplay());
+        model.addAttribute("classes", isTeacher ? teachableClassOptions(user) : CLASSES);
         model.addAttribute("isTeacher", isTeacher);
+        model.addAttribute("student", singleStudent);
+        model.addAttribute("studentId", studentId);
         model.addAttribute("activePage", "marks");
         return "marks-enter";
     }
@@ -152,6 +244,7 @@ public class MarksController {
     public String save(@RequestParam(required = false) String classFilter,
                        @RequestParam String term,
                        @RequestParam String subject,
+                       @RequestParam(required = false) Long studentId,
                        @RequestParam(required = false) List<Long> studentIds,
                        @RequestParam(required = false) List<Double> obtained,
                        @RequestParam(required = false) List<Double> maxMarks) {
@@ -160,15 +253,14 @@ public class MarksController {
             return "redirect:/marks";
         }
         boolean isTeacher = user.getRole() == Role.teacher;
-        Set<Long> allowed = isTeacher ? studentsOfClass(user).stream().map(Student::getId).collect(Collectors.toSet()) : null;
 
         if (studentIds != null && obtained != null) {
             for (int i = 0; i < studentIds.size(); i++) {
                 if (i >= obtained.size()) break;
                 Long sid = studentIds.get(i);
-                if (allowed != null && !allowed.contains(sid)) continue;
                 Student student = studentRepository.findById(sid).orElse(null);
                 if (student == null) continue;
+                if (isTeacher && !canEdit(user, student, subject)) continue;
                 Double value = obtained.get(i);
                 if (value == null || value < 0) continue;
 
@@ -188,7 +280,9 @@ public class MarksController {
             }
         }
         String redir = "redirect:/marks/enter?term=" + term + "&subject=" + subject;
-        if (classFilter != null && !classFilter.isBlank()) {
+        if (studentId != null) {
+            redir += "&studentId=" + studentId;
+        } else if (classFilter != null && !classFilter.isBlank()) {
             redir += "&classFilter=" + classFilter;
         }
         return redir + "&saved=true";
@@ -200,20 +294,22 @@ public class MarksController {
     public String delete(@PathVariable Long id,
                          @RequestParam(required = false) String term,
                          @RequestParam(required = false) String subject,
-                         @RequestParam(required = false) String classFilter) {
+                         @RequestParam(required = false) String classFilter,
+                         @RequestParam(required = false) Long studentId) {
         User user = currentUser();
         if (user == null || user.getRole() == Role.student) {
             return "redirect:/marks";
         }
         markRepository.findById(id).ifPresent(m -> {
-            if (user.getRole() == Role.teacher
-                    && !studentsOfClass(user).stream().anyMatch(s -> s.getId().equals(m.getStudent().getId()))) {
+            if (user.getRole() == Role.teacher && !canEdit(user, m.getStudent(), subject)) {
                 return;
             }
             markRepository.delete(m);
         });
         String redir = "redirect:/marks/enter?term=" + term + "&subject=" + subject;
-        if (classFilter != null && !classFilter.isBlank()) {
+        if (studentId != null) {
+            redir += "&studentId=" + studentId;
+        } else if (classFilter != null && !classFilter.isBlank()) {
             redir += "&classFilter=" + classFilter;
         }
         return redir;
@@ -236,14 +332,6 @@ public class MarksController {
         return "my-marks";
     }
 
-    private List<String> mergedSubjects() {
-        List<String> all = new ArrayList<>(markRepository.findDistinctSubjects());
-        for (String s : DEFAULT_SUBJECTS) {
-            if (!all.contains(s)) all.add(s);
-        }
-        return all;
-    }
-
     private String defaultTerm() {
         List<String> terms = markRepository.findDistinctTerms();
         return terms.isEmpty() ? "Term 1 2026" : terms.get(0);
@@ -260,17 +348,57 @@ public class MarksController {
         return "F";
     }
 
-    /** Students in the teacher's class-teacher class (classTeacherOf, e.g. "6-A"). */
-    private List<Student> studentsOfClass(User user) {
-        if (user == null) return List.of();
-        String cls = user.getClassTeacherOf();
-        if (cls == null || cls.isBlank()) return List.of();
-        String[] parts = cls.split("-", 2);
-        String className = parts[0].trim();
-        String section = parts.length > 1 ? parts[1].trim() : "";
-        return section.isBlank()
-                ? studentRepository.findByClassNameOrderByLastNameAsc(className)
-                : studentRepository.findByClassNameAndSectionOrderByLastNameAsc(className, section);
+    /** Classes a teacher may edit marks for: their class-teacher class plus the
+     *  classes they teach a subject in (assignedClasses, comma-separated). */
+    private Set<String> teacherClasses(User user) {
+        Set<String> classes = new HashSet<>();
+        if (user == null) return classes;
+        if (user.getClassTeacherOf() != null && !user.getClassTeacherOf().isBlank()) {
+            classes.add(user.getClassTeacherOf().trim());
+        }
+        if (user.getAssignedClasses() != null) {
+            for (String c : user.getAssignedClasses().split(",")) {
+                if (!c.isBlank()) classes.add(c.trim());
+            }
+        }
+        return classes;
+    }
+
+    /** Sorted classes a teacher may edit, used for the class filter dropdown. */
+    private List<String> teachableClassOptions(User user) {
+        return teacherClasses(user).stream().sorted().toList();
+    }
+
+    /** Subjects a teacher teaches, from their subject field (comma-separated). */
+    private Set<String> teacherSubjects(User user) {
+        Set<String> subjects = new HashSet<>();
+        if (user != null && user.getSubject() != null) {
+            for (String s : user.getSubject().split(",")) {
+                if (!s.isBlank()) subjects.add(s.trim());
+            }
+        }
+        return subjects;
+    }
+
+    /** Students a teacher may edit marks for: their class-teacher class (any
+     *  subject) plus all classes they teach a subject in. */
+    private List<Student> teacherVisibleStudents(User user) {
+        Set<String> classes = teacherClasses(user);
+        return studentRepository.findAllByOrderByLastNameAsc().stream()
+                .filter(s -> classes.contains(s.getClassDisplay()))
+                .toList();
+    }
+
+    /** True if the teacher may enter a mark for this student+subject: their own
+     *  class-teacher class allows any subject; other classes only for subjects
+     *  they teach. */
+    private boolean canEdit(User user, Student student, String subject) {
+        if (user.getClassTeacherOf() != null && !user.getClassTeacherOf().isBlank()
+                && student.getClassDisplay().equals(user.getClassTeacherOf().trim())) {
+            return true;
+        }
+        return teacherClasses(user).contains(student.getClassDisplay())
+                && teacherSubjects(user).contains(subject);
     }
 
     private User currentUser() {

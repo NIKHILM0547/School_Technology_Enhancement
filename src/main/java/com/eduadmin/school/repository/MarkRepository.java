@@ -28,6 +28,15 @@ public interface MarkRepository extends JpaRepository<Mark, Long> {
     List<Mark> findByStudentIdsAndTerm(@Param("studentIds") Collection<Long> studentIds,
                                        @Param("term") String term);
 
+    @Query("SELECT m FROM Mark m WHERE m.student.id IN :studentIds "
+            + "AND m.subject = :subject AND m.term = :term ORDER BY m.student.lastName")
+    List<Mark> findByStudentIdsAndSubjectAndTerm(@Param("studentIds") Collection<Long> studentIds,
+                                                 @Param("subject") String subject,
+                                                 @Param("term") String term);
+
+    @Query("SELECT DISTINCT m.subject FROM Mark m WHERE m.student.id IN :studentIds ORDER BY m.subject")
+    List<String> findDistinctSubjectsByStudentIds(@Param("studentIds") Collection<Long> studentIds);
+
     @Query("SELECT DISTINCT m.term FROM Mark m ORDER BY m.term")
     List<String> findDistinctTerms();
 

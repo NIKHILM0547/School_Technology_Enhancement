@@ -95,9 +95,11 @@
                         </td>
                         <td>
                             <form th:action="@{/reportcards/{id}/pdf(id=${s.id})}" method="get" class="reportgen-row">
-                                <input type="text" name="term" list="termOptions"
-                                       placeholder="e.g. Term 1 2026" class="term-input"
-                                       th:value="${defaultTerm}" required/>
+                                <select name="term" class="term-input" required>
+                                    <option th:each="f : ${allTerms}" th:value="${f}" th:text="${f}"
+                                            th:selected="${f == defaultTerm}"></option>
+                                    <option th:if="${allTerms.isEmpty()}" value="Term 1 2026">Term 1 2026</option>
+                                </select>
                                 <button class="btn btn-primary btn-sm" type="submit">
                                     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
                                     PDF
@@ -110,9 +112,6 @@
                     </tr>
                     </tbody>
                 </table>
-                <datalist id="termOptions">
-                    <option th:each="f : ${allTerms}" th:value="${f}"></option>
-                </datalist>
             </div>
         </div>
     </main>
