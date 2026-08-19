@@ -72,6 +72,7 @@ public class DataSeeder implements CommandLineRunner {
     private final MarkRepository markRepository;
     private final AttendanceRepository attendanceRepository;
     private final ReviewRepository reviewRepository;
+    private final ClassTeacherRemarkRepository remarkRepository;
     private final LeaveRequestRepository leaveRepository;
     private final PaymentRepository paymentRepository;
     private final PasswordEncoder passwordEncoder;
@@ -79,6 +80,7 @@ public class DataSeeder implements CommandLineRunner {
     public DataSeeder(UserRepository userRepository, StudentRepository studentRepository,
                       FeeRepository feeRepository, MarkRepository markRepository,
                       AttendanceRepository attendanceRepository, ReviewRepository reviewRepository,
+                      ClassTeacherRemarkRepository remarkRepository,
                       LeaveRequestRepository leaveRepository, PaymentRepository paymentRepository,
                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
@@ -87,6 +89,7 @@ public class DataSeeder implements CommandLineRunner {
         this.markRepository = markRepository;
         this.attendanceRepository = attendanceRepository;
         this.reviewRepository = reviewRepository;
+        this.remarkRepository = remarkRepository;
         this.leaveRepository = leaveRepository;
         this.paymentRepository = paymentRepository;
         this.passwordEncoder = passwordEncoder;
@@ -103,6 +106,7 @@ public class DataSeeder implements CommandLineRunner {
         seedMissingMarks();
         seedMissingAttendance();
         seedReviews();
+        seedClassTeacherRemarks();
         seedDemoLeaveRequests();
     }
 
@@ -430,6 +434,34 @@ public class DataSeeder implements CommandLineRunner {
             list.add(new Review(students.get(i), reviews[i][0], reviews[i][1]));
         }
         reviewRepository.saveAll(list);
+    }
+
+    /** Sample class-teacher remarks for the demo 6-A class by the demo teacher
+     *  (class teacher of 6-A), so report cards show a remark out of the box. */
+    private void seedClassTeacherRemarks() {
+        if (remarkRepository.count() > 0) return;
+        userRepository.findByEmail("teacher@school.test").ifPresent(teacher -> {
+            List<Student> students = studentRepository
+                    .findByClassNameAndSectionOrderByLastNameAsc("6", "A");
+            if (students.isEmpty()) return;
+            String[] texts = {
+                    "A bright student who participates well in class. Keep up the good work!",
+                    "Good performance. Needs to work on consistency in homework.",
+                    "Shows great improvement this term. Well done!"
+            };
+            LocalDateTime now = LocalDateTime.now();
+            for (int i = 0; i < texts.length && i < students.size(); i++) {
+                ClassTeacherRemark remark = new ClassTeacherRemark();
+                remark.setStudent(students.get(i));
+                remark.setRemark(texts[i]);
+                remark.setCreatedBy(teacher);
+                remark.setUpdatedBy(teacher);
+                remark.setCreatedAt(now.minusDays(i));
+                remark.setUpdatedAt(now.minusDays(i));
+                remarkRepository.save(remark);
+            }
+            System.out.println("Seeded class teacher remarks for 6-A students.");
+        });
     }
 
     private void seedDemoLeaveRequests() {

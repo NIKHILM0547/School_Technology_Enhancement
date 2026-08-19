@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('Class Teacher Remarks')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('remarks')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">Academics</div>
+                <h1>Class Teacher Remarks</h1>
+                <div class="text-muted" sec:authorize="hasAnyRole('admin','teacher')">
+                    Write a remark for each student. Only the student's class teacher can add or edit it.
+                </div>
+            </div>
+        </header>
+
+        <div th:if="${param.saved}" class="flash flash-success" style="margin-bottom:16px;">Remark saved.</div>
+
+        <!-- Info shown to a teacher who has not been assigned a class -->
+        <div class="card" th:if="${noClassAssigned}">
+            <div class="card-note" style="margin:0;">
+                You have not been assigned a class to be class teacher of yet. Please contact the
+                administrator to set your class.
+            </div>
+        </div>
+
+        <div class="card" th:if="${!noClassAssigned}">
+            <div class="filter-bar" sec:authorize="hasRole('admin')">
+                <form method="get" th:action="@{/remarks}" class="filter-form">
+                    <div class="filter-group">
+                        <label for="classFilter">Class</label>
+                        <select id="classFilter" name="classFilter" onchange="this.form.submit()">
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}" th:selected="${c == classQuery}"></option>
+                        </select>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" type="submit">Go</button>
+                </form>
+            </div>
+            <div class="filter-bar" sec:authorize="hasRole('teacher')" th:if="${teacherClass != null}">
+                <span class="text-muted">
+                    Class teacher of <strong th:text="${teacherClass}"></strong> — you can add remarks for these students only.
+                </span>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Admission No</th>
+                        <th>Class</th>
+                        <th>Remark</th>
+                        <th class="center">Last updated</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${rows}">
+                        <td class="font-medium" th:text="${r.name}"></td>
+                        <td th:text="${r.admissionNo}" class="text-muted"></td>
+                        <td th:text="${r.classDisplay}" class="text-muted"></td>
+                        <td style="min-width:260px;">
+                            <textarea th:id="'remark_' + ${r.studentId}" name="remark" rows="2"
+                                      th:form="'remarkForm_' + ${r.studentId}" th:text="${r.remark}"
+                                      placeholder="e.g. Good progress this term, keep it up..."></textarea>
+                        </td>
+                        <td class="center text-muted">
+                            <span th:if="${r.updatedAtDisplay != null}" th:text="${r.updatedAtDisplay}"></span>
+                            <span th:if="${r.updatedAtDisplay != null and r.updatedByName != null}" th:text="' by ' + ${r.updatedByName}"></span>
+                            <span th:if="${r.updatedAtDisplay == null}">—</span>
+                        </td>
+                        <td>
+                            <form th:id="'remarkForm_' + ${r.studentId}" th:action="@{/remarks/save}" method="post">
+                                <input type="hidden" name="studentId" th:value="${r.studentId}"/>
+                                <input type="hidden" name="classFilter" th:value="${classQuery}"/>
+                                <button class="btn btn-primary btn-sm" type="submit">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(rows)}">
+                        <td colspan="6" class="empty-cell">No students found for this class.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+<style>
+    .table textarea { width: 100%; border: 1px solid var(--border, #ddd); border-radius: 6px; padding: 6px 8px; font-family: inherit; font-size: 13px; resize: vertical; }
+</style>
+</body>
+</html>

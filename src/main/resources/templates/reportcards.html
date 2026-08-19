@@ -13,9 +13,10 @@
         </header>
 
         <div th:if="${param.saved}" class="alert alert-success" style="margin-bottom:16px;">Report card settings saved.</div>
+        <div th:if="${param.signatureSaved}" class="alert alert-success" style="margin-bottom:16px;">Your signature has been saved.</div>
 
         <!-- School branding settings (admin only) -->
-        <div class="card" sec:authorize="hasRole('admin')">
+        <div class="card" th:if="${isAdmin}">
             <div class="card-header">
                 <h2>School branding</h2>
                 <span class="text-muted">Shown at the top of every generated report card</span>
@@ -44,7 +45,48 @@
                             <input id="logo" name="logo" type="file" accept="image/*"/>
                             <span class="text-muted hint">PNG or JPG, square works best. Leave empty to keep the current logo.</span>
                         </div>
+                    </div>
+                </div>
+                <div class="brand-row" style="margin-top:20px;">
+                    <div class="brand-preview">
+                        <div th:if="${hasPrincipalSignature}" class="logo-frame">
+                            <img th:src="@{/reportcards/settings/principal-signature}" alt="Principal signature"/>
+                        </div>
+                        <div th:unless="${hasPrincipalSignature}" class="logo-frame empty">No signature</div>
+                    </div>
+                    <div class="brand-fields">
+                        <div class="form-group">
+                            <label for="principalSignature">Principal signature</label>
+                            <input id="principalSignature" name="principalSignature" type="file" accept="image/*"/>
+                            <span class="text-muted hint">A clear image of the principal's signature on white paper. PNG or JPG. Leave empty to keep the current one.</span>
+                        </div>
                         <button class="btn btn-primary" type="submit">Save branding</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Teacher signature (teachers only; used on generated report cards) -->
+        <div class="card" th:if="${isTeacher}">
+            <div class="card-header">
+                <h2>Your signature</h2>
+                <span class="text-muted">Shown on the Class Teacher signature line of every report card you generate</span>
+            </div>
+            <form th:action="@{/reportcards/signature}" method="post" enctype="multipart/form-data" class="settings-form">
+                <div class="brand-row">
+                    <div class="brand-preview">
+                        <div th:if="${hasSignature}" class="logo-frame">
+                            <img th:src="@{/reportcards/signature}" alt="Your signature"/>
+                        </div>
+                        <div th:unless="${hasSignature}" class="logo-frame empty">No signature</div>
+                    </div>
+                    <div class="brand-fields">
+                        <div class="form-group">
+                            <label for="signature">Signature image</label>
+                            <input id="signature" name="signature" type="file" accept="image/*"/>
+                            <span class="text-muted hint">A clear image of your signature on white paper. PNG or JPG. Leave empty to keep the current one.</span>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Upload signature</button>
                     </div>
                 </div>
             </form>
@@ -68,6 +110,12 @@
                     <div class="filter-group">
                         <label for="nameFilter">Student name</label>
                         <input id="nameFilter" type="search" name="name" th:value="${name}" placeholder="Search by name"/>
+                    </div>
+                    <div class="filter-group">
+                        <label for="yearFilter">Year</label>
+                        <select id="yearFilter" name="year" onchange="this.form.submit()">
+                            <option th:each="y : ${years}" th:value="${y}" th:text="${y}" th:selected="${y == selectedYear}"></option>
+                        </select>
                     </div>
                     <button class="btn btn-ghost btn-sm" type="submit">Search</button>
                     <a th:href="@{/reportcards}" class="btn btn-ghost btn-sm" th:if="${classQuery != null and !#strings.isEmpty(classQuery) or !#strings.isEmpty(name)}">Clear</a>
@@ -95,10 +143,10 @@
                         </td>
                         <td>
                             <form th:action="@{/reportcards/{id}/pdf(id=${s.id})}" method="get" class="reportgen-row">
+                                <input type="hidden" name="year" th:value="${selectedYear}"/>
                                 <select name="term" class="term-input" required>
-                                    <option th:each="f : ${allTerms}" th:value="${f}" th:text="${f}"
-                                            th:selected="${f == defaultTerm}"></option>
-                                    <option th:if="${allTerms.isEmpty()}" value="Term 1 2026">Term 1 2026</option>
+                                    <option th:each="t : ${termChoices}" th:value="${t}" th:text="${t}"
+                                            th:selected="${t == defaultTermChoice}"></option>
                                 </select>
                                 <button class="btn btn-primary btn-sm" type="submit">
                                     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>

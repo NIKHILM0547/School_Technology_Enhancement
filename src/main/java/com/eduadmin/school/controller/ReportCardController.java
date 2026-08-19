@@ -49,14 +49,26 @@ public class ReportCardController {
     @GetMapping
     public String index(@RequestParam(required = false) String classFilter,
                         @RequestParam(required = false) String name,
+                        @RequestParam(required = false) String year,
                         Model model) {
         User user = currentUser();
         boolean isTeacher = user != null && user.getRole() == Role.teacher;
+        boolean isAdmin = user != null && user.getRole() == Role.admin;
 
-        SchoolSettings settings = reportCardService.settings();
-        model.addAttribute("settings", settings);
-        model.addAttribute("isAdmin", user != null && user.getRole() == Role.admin);
-        model.addAttribute("hasLogo", settings.getLogoBytes() != null && settings.getLogoBytes().length > 0);
+        // School branding is backend/admin data; only expose it to admins.
+        if (isAdmin) {
+            SchoolSettings settings = reportCardService.settings();
+            model.addAttribute("settings", settings);
+            model.addAttribute("hasLogo", settings.getLogoBytes() != null && settings.getLogoBytes().length > 0);
+            model.addAttribute("hasPrincipalSignature",
+                    settings.getPrincipalSignatureBytes() != null && settings.getPrincipalSignatureBytes().length > 0);
+        }
+        model.addAttribute("isAdmin", isAdmin);
+        model.addAttribute("isTeacher", isTeacher);
+        if (isTeacher && user != null) {
+            model.addAttribute("hasSignature",
+                    user.getSignatureBytes() != null && user.getSignatureBytes().length > 0);
+        }
 
         List<Student> students = isTeacher
                 ? studentsOfClass(user)
@@ -77,9 +89,14 @@ public class ReportCardController {
         model.addAttribute("name", name != null ? name.trim() : "");
         model.addAttribute("classes", studentRepository.findDistinctClassDisplay());
         model.addAttribute("teacherClass", isTeacher && user != null ? user.getClassTeacherOf() : null);
-        List<String> terms = reportCardService.distinctTerms();
-        model.addAttribute("allTerms", terms);
-        model.addAttribute("defaultTerm", terms.isEmpty() ? "Term 1 2026" : terms.get(0));
+        List<String> years = reportCardService.distinctYears();
+        String selectedYear = (year != null && !year.isBlank())
+                ? year.trim()
+                : (years.isEmpty() ? String.valueOf(java.time.LocalDate.now().getYear()) : years.get(0));
+        model.addAttribute("years", years);
+        model.addAttribute("selectedYear", selectedYear);
+        model.addAttribute("termChoices", List.of("Term 1", "Term 2", "Final Term"));
+        model.addAttribute("defaultTermChoice", "Final Term");
         model.addAttribute("activePage", "reportcards");
         return "reportcards";
     }
@@ -88,7 +105,8 @@ public class ReportCardController {
     @PostMapping("/settings")
     public String saveSettings(@RequestParam String schoolName,
                                @RequestParam(required = false) String address,
-                               @RequestParam(required = false) MultipartFile logo) throws IOException {
+                               @RequestParam(required = false) MultipartFile logo,
+                               @RequestParam(required = false) MultipartFile principalSignature) throws IOException {
         User user = currentUser();
         if (user == null || user.getRole() != Role.admin) {
             return "redirect:/reportcards";
@@ -102,6 +120,12 @@ public class ReportCardController {
             byte[] png = ReportCardService.normalizeToPng(raw);
             settings.setLogoBytes(png);
             settings.setLogoContentType(ReportCardService.detectImageType(png, "image/png"));
+        }
+        if (principalSignature != null && !principalSignature.isEmpty()) {
+            byte[] raw = principalSignature.getBytes();
+            byte[] png = ReportCardService.normalizeToPng(raw);
+            settings.setPrincipalSignatureBytes(png);
+            settings.setPrincipalSignatureContentType(ReportCardService.detectImageType(png, "image/png"));
         }
         settingsRepository.save(settings);
         return "redirect:/reportcards?saved=true";
@@ -121,10 +145,61 @@ public class ReportCardController {
                 .body(new ByteArrayResource(settings.getLogoBytes()));
     }
 
-    /** Generates the PDF report card for one student. Admin/teacher only. */
+    /** Streams the principal's signature so the admin page can preview it. */
+    @GetMapping("/settings/principal-signature")
+    public ResponseEntity<Resource> principalSignature() {
+        SchoolSettings settings = reportCardService.settings();
+        if (settings.getPrincipalSignatureBytes() == null || settings.getPrincipalSignatureBytes().length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        String type = settings.getPrincipalSignatureContentType() != null
+                ? settings.getPrincipalSignatureContentType() : MediaType.IMAGE_PNG_VALUE;
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(type))
+                .cacheControl(org.springframework.http.CacheControl.noCache())
+                .body(new ByteArrayResource(settings.getPrincipalSignatureBytes()));
+    }
+
+    /** Streams the logged-in teacher's signature so the page can preview it. */
+    @GetMapping("/signature")
+    public ResponseEntity<Resource> signature() {
+        User user = currentUser();
+        if (user == null || user.getRole() != Role.teacher
+                || user.getSignatureBytes() == null || user.getSignatureBytes().length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        String type = user.getSignatureContentType() != null
+                ? user.getSignatureContentType() : MediaType.IMAGE_PNG_VALUE;
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(type))
+                .cacheControl(org.springframework.http.CacheControl.noCache())
+                .body(new ByteArrayResource(user.getSignatureBytes()));
+    }
+
+    /** Uploads the logged-in teacher's signature. Teacher only. */
+    @PostMapping("/signature")
+    public String saveSignature(@RequestParam(required = false) MultipartFile signature) throws IOException {
+        User user = currentUser();
+        if (user == null || user.getRole() != Role.teacher) {
+            return "redirect:/reportcards";
+        }
+        if (signature != null && !signature.isEmpty()) {
+            byte[] raw = signature.getBytes();
+            byte[] png = ReportCardService.normalizeToPng(raw);
+            user.setSignatureBytes(png);
+            user.setSignatureContentType(ReportCardService.detectImageType(png, "image/png"));
+            userRepository.save(user);
+        }
+        return "redirect:/reportcards?signatureSaved=true";
+    }
+
+    /** Generates the annual PDF report card for one student (shows Term 1,
+     *  Term 2 and the Final combined result for the chosen academic year).
+     *  Admin/teacher only. */
     @GetMapping("/{studentId}/pdf")
     public ResponseEntity<byte[]> pdf(@PathVariable Long studentId,
-                                      @RequestParam String term,
+                                      @RequestParam(required = false) String term,
+                                      @RequestParam(required = false) String year,
                                       Model model) {
         User user = currentUser();
         if (user == null || user.getRole() == Role.student) {
@@ -139,7 +214,39 @@ public class ReportCardController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
         }
 
-        byte[] pdf = reportCardService.generatePdf(student, term, model);
+        String academicYear = (year != null && !year.isBlank())
+                ? year.trim()
+                : String.valueOf(java.time.LocalDate.now().getYear());
+        String termChoice = (term != null && !term.isBlank()) ? term.trim() : "Final Term";
+
+        // Embed the student's class teacher's signature, if uploaded.
+        User classTeacher = user.getRole() == Role.teacher
+                ? user
+                : userRepository.findByRoleAndClassTeacherOf(Role.teacher, student.getClassDisplay()).orElse(null);
+        if (classTeacher != null && classTeacher.getSignatureBytes() != null
+                && classTeacher.getSignatureBytes().length > 0) {
+            byte[] sigPng = ReportCardService.normalizeToPng(classTeacher.getSignatureBytes());
+            String type = ReportCardService.detectImageType(sigPng, classTeacher.getSignatureContentType());
+            model.addAttribute("classTeacherSignatureDataUri",
+                    "data:" + type + ";base64,"
+                            + java.util.Base64.getEncoder().encodeToString(sigPng));
+        } else {
+            model.addAttribute("classTeacherSignatureDataUri", null);
+        }
+
+        // Embed the principal's signature, if uploaded.
+        SchoolSettings settings = reportCardService.settings();
+        if (settings.getPrincipalSignatureBytes() != null && settings.getPrincipalSignatureBytes().length > 0) {
+            byte[] sigPng = ReportCardService.normalizeToPng(settings.getPrincipalSignatureBytes());
+            String type = ReportCardService.detectImageType(sigPng, settings.getPrincipalSignatureContentType());
+            model.addAttribute("principalSignatureDataUri",
+                    "data:" + type + ";base64,"
+                            + java.util.Base64.getEncoder().encodeToString(sigPng));
+        } else {
+            model.addAttribute("principalSignatureDataUri", null);
+        }
+
+        byte[] pdf = reportCardService.generatePdf(student, academicYear, termChoice, model);
         String filename = URLEncoder.encode(student.getFullName().replace(" ", "_") + "_report.pdf",
                 StandardCharsets.UTF_8);
         return ResponseEntity.ok()

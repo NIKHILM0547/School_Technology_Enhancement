@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(Role role);
     List<User> findByAssignedClassesContaining(String classFilter);
 
+    /** The class teacher user for a class (e.g. "6-A"), if one is assigned. */
+    Optional<User> findByRoleAndClassTeacherOf(Role role, String classTeacherOf);
+
     /** Filters by optional role/classFilter and searches by name. */
     @Query("SELECT u FROM User u WHERE "
             + "(:anyRole = true OR u.role = :role) "

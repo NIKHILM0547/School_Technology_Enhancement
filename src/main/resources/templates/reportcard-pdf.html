@@ -7,41 +7,55 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <title>Report Card</title>
     <style type="text/css">
-        @page { size: 8.5in 11in; margin: 14mm; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+        @page { size: 8.5in 11in; margin: 12mm 14mm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12.5px; color: #1f2937; line-height: 1.45; }
+
         .bordered { border-collapse: collapse; width: 100%; }
-        .bordered th, .bordered td { border: 1px solid #444; padding: 4px 6px; }
-        .bordered th { background: #eee; text-align: left; }
+        .bordered th, .bordered td { border: 1px solid #cbd5e1; padding: 7px 10px; }
+        .bordered th { background: #1e3a5f; color: #ffffff; text-align: left; font-size: 12px; letter-spacing: 0.3px; }
         .center { text-align: center; }
-        .header td { padding: 6px; }
-        .school-name { font-size: 20px; font-weight: bold; }
-        .school-addr { font-size: 10px; color: #555; }
-        .title { font-size: 15px; font-weight: bold; letter-spacing: 3px; }
-        .info td { padding: 3px 6px; }
-        .stat td { text-align: center; font-size: 12px; padding: 5px; }
-        .section-title { font-size: 12px; font-weight: bold; margin: 10px 0 4px 0; }
-        .sign td { padding: 3px 0 3px 0; }
-        .spacer { height: 34px; }
-        .hr { border-bottom: 1px solid #000; }
-        .marks-total td { background: #f4f4f4; }
+        .info td { padding: 7px 10px; }
+        .info-label { color: #475569; }
+        .stat td { text-align: center; font-size: 15px; padding: 8px 5px; }
+        .marks-total td { background: #eef2f7; }
+
+        .header td { border: none; vertical-align: middle; }
+        .school-name { font-size: 27px; font-weight: bold; color: #1e3a5f; letter-spacing: 0.5px; }
+        .school-addr { font-size: 11.5px; color: #64748b; margin-top: 2px; }
+        .title { font-size: 19px; font-weight: bold; letter-spacing: 4px; color: #1e3a5f;
+                 border-top: 2px solid #1e3a5f; border-bottom: 1px solid #1e3a5f;
+                 display: inline-block; padding: 5px 18px; margin-top: 10px; }
+        .acad-year { font-size: 13.5px; color: #475569; margin-top: 5px; letter-spacing: 1px; }
+
+        .section-title { font-size: 15px; font-weight: bold; color: #1e3a5f;
+                         margin: 16px 0 7px 0; padding-bottom: 3px; border-bottom: 2px solid #94a3b8; }
+        .legend { font-size: 9.5px; color: #64748b; margin-top: 4px; }
+        .page-break { page-break-before: always; }
+
+        .remark-box { min-height: 72px; padding: 11px 14px; color: #1f2937; }
+        .remark-sign { text-align: right; font-size: 12px; color: #475569; padding: 5px 7px 8px 7px; }
+
+        .sign { width: 100%; border-collapse: collapse; }
+        .sign td { padding: 5px; vertical-align: top; }
+        .sign-img { height: 36px; }
+        .sign-line { border-bottom: 1px solid #000; height: 42px; margin: 0 8px; }
+        .sign-label { font-size: 12.5px; color: #1e3a5f; margin-top: 6px; }
+        .no-logo { font-size: 10px; color: #94a3b8; }
     </style>
 </head>
 <body>
 
 <!-- School header with logo + name -->
 <table class="bordered header"><tr>
-    <td width="110" class="center">
-        <img th:if="${logoDataUri}" th:src="${logoDataUri}" width="80" height="80" alt="School logo"/>
+    <td width="95" class="center">
+        <img th:if="${logoDataUri}" th:src="${logoDataUri}" width="78" height="78" alt="School logo"/>
+        <div th:unless="${logoDataUri}" class="no-logo">(School logo not uploaded)</div>
     </td>
-    <td>
+    <td class="center">
         <div class="school-name" th:text="${settings.schoolName}">School Name</div>
         <div class="school-addr" th:text="${settings.address}">Address / contact</div>
-        <div style="height:6px"></div>
         <div class="title">REPORT CARD</div>
-        <div th:text="'Academic ' + ${term}">Term</div>
-    </td>
-    <td width="140" class="center" th:if="${logoDataUri == null}">
-        <div style="font-size:11px;color:#888;">(School logo not uploaded)</div>
+        <div class="acad-year" th:text="'Academic Year ' + ${year}">Academic Year 2026</div>
     </td>
 </tr></table>
 
@@ -49,27 +63,27 @@
 <div class="section-title">Student Information</div>
 <table class="bordered">
     <tr>
-        <td width="18%" class="info"><b>Name</b></td>
+        <td width="18%" class="info info-label"><b>Name</b></td>
         <td class="info" th:text="${student.fullName}">Student Name</td>
-        <td width="18%" class="info"><b>Admission No</b></td>
+        <td width="18%" class="info info-label"><b>Admission No</b></td>
         <td width="22%" class="info" th:text="${student.admissionNo}">S1001</td>
     </tr>
     <tr>
-        <td class="info"><b>Class</b></td>
+        <td class="info info-label"><b>Class</b></td>
         <td class="info" th:text="${student.classDisplay}">6-A</td>
-        <td class="info"><b>Parent / Guardian</b></td>
+        <td class="info info-label"><b>Parent / Guardian</b></td>
         <td class="info" th:text="${student.parentName ?: '—'}">Parent</td>
     </tr>
     <tr>
-        <td class="info"><b>Term</b></td>
-        <td class="info" th:text="${term}">Term 1 2026</td>
-        <td class="info"><b>Issued on</b></td>
+        <td class="info info-label"><b>Term</b></td>
+        <td class="info" th:text="${termChoice}">Final Term</td>
+        <td class="info info-label"><b>Issued on</b></td>
         <td class="info" th:text="${#temporals.format(today, 'dd MMM yyyy')}">01 Aug 2026</td>
     </tr>
 </table>
 
-<!-- Marks / performance table -->
-<div class="section-title">Subject-wise Performance</div>
+<!-- Term 1 performance -->
+<div class="section-title">Term 1 Performance</div>
 <table class="bordered">
     <thead><tr>
         <th width="45%">Subject</th>
@@ -79,7 +93,74 @@
         <th class="center">Grade</th>
     </tr></thead>
     <tbody>
-    <tr th:each="row : ${subjectRows}">
+    <tr th:each="row : ${term1Rows}">
+        <td th:text="${row.subject}">Mathematics</td>
+        <td class="center" th:text="${#numbers.formatDecimal(row.maxMarks, 0, 0)}">100</td>
+        <td class="center" th:text="${row.obtained != null ? #numbers.formatDecimal(row.obtained, 0, 0) : '—'}">—</td>
+        <td class="center" th:text="${row.percentage != null ? row.percentage + '%' : '—'}">—</td>
+        <td class="center" th:text="${row.grade}">—</td>
+    </tr>
+    <tr class="marks-total" th:if="${hasTerm1Marks}">
+        <td><b>Total</b></td>
+        <td class="center" th:text="${#numbers.formatDecimal(term1Max, 0, 0)}">0</td>
+        <td class="center"><b th:text="${#numbers.formatDecimal(term1Total, 0, 0)}">0</b></td>
+        <td class="center"><b th:text="${term1Pct + '%'}">0%</b></td>
+        <td class="center" th:text="${term1Grade}">—</td>
+    </tr>
+    <tr th:if="${not hasTerm1Marks}">
+        <td colspan="5" style="text-align:center;color:#64748b;">
+            Marks for Term 1 have not been recorded yet.
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- Term 2 performance -->
+<div class="section-title">Term 2 Performance</div>
+<table class="bordered">
+    <thead><tr>
+        <th width="45%">Subject</th>
+        <th class="center">Max. Marks</th>
+        <th class="center">Marks Obtained</th>
+        <th class="center">Percentage</th>
+        <th class="center">Grade</th>
+    </tr></thead>
+    <tbody>
+    <tr th:each="row : ${term2Rows}">
+        <td th:text="${row.subject}">Mathematics</td>
+        <td class="center" th:text="${#numbers.formatDecimal(row.maxMarks, 0, 0)}">100</td>
+        <td class="center" th:text="${row.obtained != null ? #numbers.formatDecimal(row.obtained, 0, 0) : '—'}">—</td>
+        <td class="center" th:text="${row.percentage != null ? row.percentage + '%' : '—'}">—</td>
+        <td class="center" th:text="${row.grade}">—</td>
+    </tr>
+    <tr class="marks-total" th:if="${hasTerm2Marks}">
+        <td><b>Total</b></td>
+        <td class="center" th:text="${#numbers.formatDecimal(term2Max, 0, 0)}">0</td>
+        <td class="center"><b th:text="${#numbers.formatDecimal(term2Total, 0, 0)}">0</b></td>
+        <td class="center"><b th:text="${term2Pct + '%'}">0%</b></td>
+        <td class="center" th:text="${term2Grade}">—</td>
+    </tr>
+    <tr th:if="${not hasTerm2Marks}">
+        <td colspan="5" style="text-align:center;color:#64748b;">
+            Marks for Term 2 have not been recorded yet.
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- Final (annual) performance starts on a new page so the card stays to two pages -->
+<div class="page-break"></div>
+<div class="section-title">Final Term (Annual)</div>
+<table class="bordered">
+    <thead><tr>
+        <th width="45%">Subject</th>
+        <th class="center">Max. Marks</th>
+        <th class="center">Marks Obtained</th>
+        <th class="center">Percentage</th>
+        <th class="center">Grade</th>
+    </tr></thead>
+    <tbody>
+    <tr th:each="row : ${finalRows}">
         <td th:text="${row.subject}">Mathematics</td>
         <td class="center" th:text="${#numbers.formatDecimal(row.maxMarks, 0, 0)}">100</td>
         <td class="center" th:text="${row.obtained != null ? #numbers.formatDecimal(row.obtained, 0, 0) : '—'}">—</td>
@@ -88,24 +169,24 @@
     </tr>
     <tr class="marks-total" th:if="${hasMarks}">
         <td><b>Total</b></td>
-        <td class="center" th:text="${#numbers.formatDecimal(marksMax, 0, 0)}">0</td>
-        <td class="center"><b th:text="${#numbers.formatDecimal(marksTotal, 0, 0)}">0</b></td>
-        <td class="center"><b th:text="${marksPct + '%'}">0%</b></td>
-        <td class="center" th:text="${totalGrade}">—</td>
+        <td class="center" th:text="${#numbers.formatDecimal(finalMax, 0, 0)}">0</td>
+        <td class="center"><b th:text="${#numbers.formatDecimal(finalTotal, 0, 0)}">0</b></td>
+        <td class="center"><b th:text="${finalPct + '%'}">0%</b></td>
+        <td class="center" th:text="${finalGrade}">—</td>
     </tr>
     <tr th:if="${not hasMarks}">
-        <td colspan="5" style="text-align:center;color:#666;">
-            Marks for this term have not been recorded yet.
+        <td colspan="5" style="text-align:center;color:#64748b;">
+            Marks for this year have not been recorded yet.
         </td>
     </tr>
     </tbody>
 </table>
-<div style="font-size:9px;color:#666;margin-top:3px;">
+<div class="legend">
     Grades: A+ ≥ 90, A ≥ 80, B+ ≥ 70, B ≥ 60, C ≥ 50, D ≥ 40, F &lt; 40.
 </div>
 
-<!-- Attendance summary -->
-<div class="section-title">Attendance Summary</div>
+<!-- Attendance summary (page 2, below the final results) -->
+<div class="section-title" th:text="'Attendance Summary (' + ${year} + ')'">Attendance Summary</div>
 <table class="bordered stat">
     <tr>
         <th>Days Present</th>
@@ -121,25 +202,39 @@
     </tr>
 </table>
 
-<!-- Remarks -->
-<div class="section-title">Remarks</div>
+<!-- Remarks + Signatures flow onto the same (second) page -->
+<div class="section-title">Class Teacher's Remarks</div>
 <table class="bordered">
-    <tr><td class="info">Class Teacher</td></tr>
-    <tr><td style="height:54px;"></td></tr>
+    <tr>
+        <td class="remark-box" th:text="${classTeacherRemark ?: 'No remark recorded for this student yet.'}"></td>
+    </tr>
+    <tr th:if="${classTeacherRemark != null and classTeacherName != null}">
+        <td class="remark-sign">— <span th:text="${classTeacherName}"></span></td>
+    </tr>
 </table>
 
-<!-- Signatures -->
-<div class="spacer"></div>
-<table class="bordered sign">
+<div class="section-title">Signatures</div>
+<table class="sign">
     <tr>
-        <td class="center">___________</td>
-        <td class="center">___________</td>
-        <td class="center">___________</td>
-    </tr>
-    <tr>
-        <td class="center"><b>Class Teacher</b></td>
-        <td class="center"><b>Principal</b></td>
-        <td class="center"><b>Parent Signature</b></td>
+        <td class="center">
+            <div class="sign-img">
+                <img th:if="${classTeacherSignatureDataUri}" th:src="${classTeacherSignatureDataUri}" height="34" alt="Class teacher signature"/>
+            </div>
+            <div class="sign-line"></div>
+            <div class="sign-label"><b>Class Teacher</b></div>
+        </td>
+        <td class="center">
+            <div class="sign-img">
+                <img th:if="${principalSignatureDataUri}" th:src="${principalSignatureDataUri}" height="34" alt="Principal signature"/>
+            </div>
+            <div class="sign-line"></div>
+            <div class="sign-label"><b>Principal</b></div>
+        </td>
+        <td class="center">
+            <div class="sign-img"></div>
+            <div class="sign-line"></div>
+            <div class="sign-label"><b>Parent / Guardian</b></div>
+        </td>
     </tr>
 </table>
 

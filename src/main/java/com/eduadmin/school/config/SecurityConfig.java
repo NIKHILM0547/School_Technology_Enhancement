@@ -41,6 +41,8 @@ public class SecurityConfig {
                 .requestMatchers("/reportcards/**").hasAnyRole("admin", "teacher")
                 // Marks: admins + teachers enter marks, students view their own
                 .requestMatchers("/marks/**").hasAnyRole("admin", "teacher", "student")
+                // Class teacher remarks: admins + class teachers write remarks
+                .requestMatchers("/remarks/**").hasAnyRole("admin", "teacher")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

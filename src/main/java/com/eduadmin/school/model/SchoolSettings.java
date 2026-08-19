@@ -30,6 +30,16 @@ public class SchoolSettings {
     @Column(name = "logo_content_type")
     private String logoContentType;
 
+    /** Principal's signature shown on generated report cards (stored as PNG
+     *  in the DB, like the school logo). */
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "principal_signature_bytes", nullable = true, columnDefinition = "LONGBLOB")
+    private byte[] principalSignatureBytes;
+
+    @Column(name = "principal_signature_content_type")
+    private String principalSignatureContentType;
+
     public SchoolSettings() {}
 
     public static SchoolSettings defaults() {
@@ -54,4 +64,10 @@ public class SchoolSettings {
 
     public String getLogoContentType() { return logoContentType; }
     public void setLogoContentType(String logoContentType) { this.logoContentType = logoContentType; }
+
+    public byte[] getPrincipalSignatureBytes() { return principalSignatureBytes; }
+    public void setPrincipalSignatureBytes(byte[] principalSignatureBytes) { this.principalSignatureBytes = principalSignatureBytes; }
+
+    public String getPrincipalSignatureContentType() { return principalSignatureContentType; }
+    public void setPrincipalSignatureContentType(String principalSignatureContentType) { this.principalSignatureContentType = principalSignatureContentType; }
 }

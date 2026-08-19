@@ -52,6 +52,9 @@
         <a th:href="@{/marks}" class="nav-link" th:classappend="${activePage == 'marks'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','teacher','student')">
             <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span> Marks
         </a>
+        <a th:href="@{/remarks}" class="nav-link" th:classappend="${activePage == 'remarks'} ? ' active' : ''" sec:authorize="hasAnyRole('admin','teacher')">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/><path d="M9 9h6M9 13h4"/></svg></span> Class Remarks
+        </a>
     </nav>
     <div class="sidebar-footer">
         <div class="user-chip">

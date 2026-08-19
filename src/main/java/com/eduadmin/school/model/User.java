@@ -49,6 +49,16 @@ public class User {
     @Column(nullable = false)
     private String mobile;
 
+    /** Teacher's signature image shown on generated report cards (stored as
+     *  PNG in the DB so it follows the app across servers). */
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "signature_bytes", nullable = true, columnDefinition = "LONGBLOB")
+    private byte[] signatureBytes;
+
+    @Column(name = "signature_content_type")
+    private String signatureContentType;
+
     /** Not persisted; admission number lives on the linked Student record. */
     @Transient
     private String admissionNo;
@@ -94,4 +104,10 @@ public class User {
 
     public String getAdmissionNo() { return admissionNo; }
     public void setAdmissionNo(String admissionNo) { this.admissionNo = admissionNo; }
+
+    public byte[] getSignatureBytes() { return signatureBytes; }
+    public void setSignatureBytes(byte[] signatureBytes) { this.signatureBytes = signatureBytes; }
+
+    public String getSignatureContentType() { return signatureContentType; }
+    public void setSignatureContentType(String signatureContentType) { this.signatureContentType = signatureContentType; }
 }
