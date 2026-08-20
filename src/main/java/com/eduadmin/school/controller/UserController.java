@@ -279,6 +279,50 @@ public class UserController {
         return targetClass != null && targetClass.trim().equals(ownClass);
     }
 
+    /** Promote a student account to another class. The linked Student record and the
+     *  account's assigned class are updated together. */
+    @PostMapping("/{id}/promote")
+    public String promote(@PathVariable Long id,
+                          @RequestParam String newClass,
+                          RedirectAttributes redirectAttributes) {
+        User current = currentUser();
+        boolean classTeacher = isClassTeacher(current);
+        User target = userRepository.findById(id).orElseThrow();
+
+        if (classTeacher && !mayManageStudent(current, target)) {
+            redirectAttributes.addFlashAttribute("error", "You can only manage student accounts of your own class");
+            return "redirect:/users";
+        }
+        if (target.getRole() != Role.student) {
+            redirectAttributes.addFlashAttribute("error", "Only student accounts can be promoted");
+            return "redirect:/users";
+        }
+        if (newClass == null || newClass.isBlank()) {
+            redirectAttributes.addFlashAttribute("error", "Please select a class");
+            return "redirect:/users";
+        }
+
+        String targetClass = newClass.trim();
+        String[] parts = targetClass.split("-", 2);
+        if (parts[0].isBlank()) {
+            redirectAttributes.addFlashAttribute("error", "Invalid class");
+            return "redirect:/users";
+        }
+
+        target.setAssignedClasses(targetClass);
+        userRepository.save(target);
+
+        studentRepository.findByUser(target).ifPresent(s -> {
+            s.setClassName(parts[0].trim());
+            s.setSection(parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : null);
+            studentRepository.save(s);
+        });
+
+        redirectAttributes.addFlashAttribute("success",
+                target.getName() + " was promoted to " + targetClass);
+        return "redirect:/users";
+    }
+
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id,
                          @RequestParam String name,

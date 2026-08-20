@@ -74,6 +74,9 @@
                                 <button class="btn btn-ghost btn-sm"
                                         th:attr="data-id=${u.id},data-name=${u.name},data-email=${u.email},data-mobile=${u.mobile},data-role=${u.role},data-subject=${u.subject},data-subjects=${u.subjects},data-classes=${u.assignedClasses},data-cteacher=${u.classTeacherOf}"
                                         onclick="editUser(this)">Edit</button>
+                                <button class="btn btn-ghost btn-sm" th:if="${u.role.name() == 'student'}"
+                                        th:attr="data-id=${u.id},data-name=${u.name},data-class=${u.assignedClasses}"
+                                        onclick="promoteUser(this)">Promote</button>
                                 <form th:action="@{/users/{id}/delete(id=${u.id})}" method="post"
                                       onsubmit="return confirm('Delete this user?');">
                                     <button class="btn btn-danger btn-sm" type="submit">Remove</button>
@@ -274,6 +277,36 @@
     </div>
 </div>
 
+<!-- Promote Student Modal -->
+<div id="promoteModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closePromoteModal()">
+    <div class="modal-card modal-sm">
+        <h2>Promote student</h2>
+        <form id="promoteForm" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="modal-scroll">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Student</label>
+                        <div id="promoteStudentName" class="font-medium" style="padding:8px 0;">—</div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="promoteClass">Move to class</label>
+                        <select id="promoteClass" name="newClass" required>
+                            <option value="">Select class</option>
+                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                        </select>
+                        <span class="text-muted hint">The student's account and class record move to this class.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" onclick="closePromoteModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Promote</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <style>
     .subject-grid { display: flex; flex-wrap: wrap; gap: 6px; }
     .subject-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #cbd5e1;
@@ -282,6 +315,7 @@
     .subject-chip:has(input:checked) { background: #e0e7ff; border-color: #6366f1; }
     .hint { font-size: 12px; color: #64748b; display: block; margin-top: 4px; }
     .readonly-field { background: #f1f5f9; color: #334155; cursor: not-allowed; }
+    .modal-card.modal-sm { max-width: 420px; }
 </style>
 
 <script>
@@ -517,6 +551,17 @@ function renderEditTeachPairs() {
 
 function closeEditModal() {
     document.getElementById('editUserModal').style.display = 'none';
+}
+
+function promoteUser(btn) {
+    document.getElementById('promoteForm').action = '/users/' + btn.getAttribute('data-id') + '/promote';
+    document.getElementById('promoteStudentName').textContent = btn.getAttribute('data-name');
+    document.getElementById('promoteClass').value = '';
+    document.getElementById('promoteModal').style.display = 'flex';
+}
+
+function closePromoteModal() {
+    document.getElementById('promoteModal').style.display = 'none';
 }
 
 if (document.querySelector('.form-error')) {
