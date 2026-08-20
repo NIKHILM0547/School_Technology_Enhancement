@@ -890,6 +890,7 @@ input.error {
 .fee-present { background: var(--success-bg); color: var(--success); }
 .fee-absent { background: var(--danger-bg); color: var(--danger); }
 .fee-late { background: var(--warning-bg); color: var(--warning); }
+.fee-unmarked { background: var(--gray-100); color: var(--gray-500); }
 
 /* Generic pill badge */
 .badge {

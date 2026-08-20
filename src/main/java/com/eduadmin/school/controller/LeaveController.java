@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Controller
@@ -48,6 +49,7 @@ public class LeaveController {
                 status = null;
             }
         }
+        LeaveStatus filterFinal = filter;
 
         List<LeaveRequest> requests = new ArrayList<>();
         if (user.getRole() == Role.admin) {
@@ -58,7 +60,19 @@ public class LeaveController {
             Student me = studentRepository.findByUser(user).orElse(null);
             requests = me != null ? leaveRepository.findByStudentOrderByAppliedAtDesc(me) : List.of();
         } else {
-            requests = leaveRepository.findByApplicantOrderByAppliedAtDesc(user);
+            // Teachers see their own requests plus (if they are a class teacher)
+            // the leave requests of the students in their class.
+            List<LeaveRequest> own = leaveRepository.findByApplicantOrderByAppliedAtDesc(user);
+            List<LeaveRequest> classStudents = classTeacherOf(user) != null
+                    ? leaveRepository.findByStudentInOrderByAppliedAtDesc(studentsOfClass(classTeacherOf(user)))
+                    : List.of();
+            requests = new ArrayList<>();
+            requests.addAll(classStudents);
+            requests.addAll(own);
+            requests.sort(Comparator.comparing(LeaveRequest::getAppliedAt, Comparator.reverseOrder()));
+            if (filterFinal != null) {
+                requests = requests.stream().filter(r -> r.getStatus() == filterFinal).toList();
+            }
         }
 
         model.addAttribute("requests", requests);
@@ -66,6 +80,7 @@ public class LeaveController {
         model.addAttribute("statuses", LeaveStatus.values());
         model.addAttribute("isAdmin", user.getRole() == Role.admin);
         model.addAttribute("isStudent", user.getRole() == Role.student);
+        model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && classTeacherOf(user) != null);
         model.addAttribute("currentUser", user);
         model.addAttribute("activePage", "leave");
         return "leave";
@@ -114,6 +129,7 @@ public class LeaveController {
             model.addAttribute("statuses", LeaveStatus.values());
             model.addAttribute("isAdmin", false);
             model.addAttribute("isStudent", user.getRole() == Role.student);
+            model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && classTeacherOf(user) != null);
             model.addAttribute("currentUser", user);
             model.addAttribute("errorMessages", errors);
             model.addAttribute("fromDate", fromDate);
@@ -137,18 +153,26 @@ public class LeaveController {
         return "redirect:/attendance/leave?saved=true";
     }
 
-    /** Approves or rejects a pending request. Admin only. */
+    /** Approves or rejects a pending request. Admins approve anything; class
+     *  teachers may approve/reject only leave from students of their own class. */
     @PostMapping("/{id}/review")
     @Transactional
     public String review(@PathVariable Long id,
                          @RequestParam String action,
                          @RequestParam(required = false) String reviewComment) {
         User user = currentUser();
-        if (user == null || user.getRole() != Role.admin) {
+        if (user == null) {
             return "redirect:/attendance/leave";
         }
         LeaveRequest request = leaveRepository.findById(id).orElse(null);
         if (request == null || request.getStatus() != LeaveStatus.pending) {
+            return "redirect:/attendance/leave";
+        }
+        boolean isAdmin = user.getRole() == Role.admin;
+        boolean isClassTeacher = user.getRole() == Role.teacher && classTeacherOf(user) != null
+                && request.getStudent() != null
+                && request.getStudent().getClassDisplay().equals(classTeacherOf(user));
+        if (!isAdmin && !isClassTeacher) {
             return "redirect:/attendance/leave";
         }
         if ("approve".equals(action)) {
@@ -171,6 +195,23 @@ public class LeaveController {
             return me != null ? leaveRepository.findByStudentOrderByAppliedAtDesc(me) : List.of();
         }
         return leaveRepository.findByApplicantOrderByAppliedAtDesc(user);
+    }
+
+    /** The class the teacher is class teacher of, or null. */
+    private String classTeacherOf(User user) {
+        if (user == null || user.getRole() != Role.teacher) return null;
+        String cls = user.getClassTeacherOf();
+        return (cls != null && !cls.isBlank()) ? cls.trim() : null;
+    }
+
+    /** Students of a class in "6-A" form, sorted by name. */
+    private List<Student> studentsOfClass(String cls) {
+        String[] parts = cls.split("-", 2);
+        String className = parts[0].trim();
+        String section = parts.length > 1 ? parts[1].trim() : "";
+        return section.isBlank()
+                ? studentRepository.findByClassNameOrderByLastNameAsc(className)
+                : studentRepository.findByClassNameAndSectionOrderByLastNameAsc(className, section);
     }
 
     private User currentUser() {

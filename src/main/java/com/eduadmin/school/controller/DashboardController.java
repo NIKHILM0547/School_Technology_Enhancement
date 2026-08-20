@@ -24,19 +24,22 @@ public class DashboardController {
     private final StaffAttendanceRepository staffAttendanceRepository;
     private final FeeRepository feeRepository;
     private final ReviewRepository reviewRepository;
+    private final AnnouncementRepository announcementRepository;
 
     public DashboardController(StudentRepository studentRepository,
                                UserRepository userRepository,
                                AttendanceRepository attendanceRepository,
                                StaffAttendanceRepository staffAttendanceRepository,
                                FeeRepository feeRepository,
-                               ReviewRepository reviewRepository) {
+                               ReviewRepository reviewRepository,
+                               AnnouncementRepository announcementRepository) {
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.attendanceRepository = attendanceRepository;
         this.staffAttendanceRepository = staffAttendanceRepository;
         this.feeRepository = feeRepository;
         this.reviewRepository = reviewRepository;
+        this.announcementRepository = announcementRepository;
     }
 
     @GetMapping("/")
@@ -105,6 +108,7 @@ public class DashboardController {
         model.addAttribute("absentCount", absentCount);
         model.addAttribute("lateCount", lateCount);
         model.addAttribute("myReviews", myReviews);
+        model.addAttribute("recentAnnouncements", announcementRepository.findTop5ByOrderByCreatedAtDesc());
         model.addAttribute("isStudent", true);
         model.addAttribute("activePage", "dashboard");
         return "student-dashboard";
@@ -155,6 +159,7 @@ public class DashboardController {
         model.addAttribute("outstanding", outstanding);
         model.addAttribute("overdueCount", overdueCount);
         model.addAttribute("pendingFees", pendingFees);
+        model.addAttribute("recentAnnouncements", announcementRepository.findTop5ByOrderByCreatedAtDesc());
         model.addAttribute("activePage", "dashboard");
         return "dashboard";
     }
@@ -214,6 +219,7 @@ public class DashboardController {
         model.addAttribute("lateToday", lateToday);
         model.addAttribute("absentNames", absentNames);
         model.addAttribute("markedToday", markedToday);
+        model.addAttribute("recentAnnouncements", announcementRepository.findTop5ByOrderByCreatedAtDesc());
         model.addAttribute("activePage", "dashboard");
         return "teacher-dashboard";
     }

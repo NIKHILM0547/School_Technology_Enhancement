@@ -36,6 +36,20 @@ public class GlobalModelAdvice {
         return user != null && user.getRole() == Role.teacher;
     }
 
+    /** True if the logged-in user is an admin (used to hide admin-only menus). */
+    @ModelAttribute("isAdmin")
+    public boolean isAdmin() {
+        User user = currentUser();
+        return user != null && user.getRole() == Role.admin;
+    }
+
+    /** True if the logged-in user is a student (used to hide admin/teacher-only menus). */
+    @ModelAttribute("isStudent")
+    public boolean isStudent() {
+        User user = currentUser();
+        return user != null && user.getRole() == Role.student;
+    }
+
     /** The class of the logged-in user: the class a class teacher is in charge of,
      *  or the current class of a student. Empty for admins / plain teachers. */
     @ModelAttribute("currentUserClass")

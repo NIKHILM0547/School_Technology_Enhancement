@@ -16,8 +16,8 @@
         </header>
 
         <div th:if="${param.saved}" class="flash flash-success" style="margin-bottom:16px;">
-            <span th:if="${isAdmin}">Leave request updated.</span>
-            <span th:unless="${isAdmin}">Leave request submitted. An admin will review it.</span>
+            <span th:if="${isAdmin or isClassTeacher}">Leave request updated.</span>
+            <span th:unless="${isAdmin or isClassTeacher}">Leave request submitted. An admin will review it.</span>
         </div>
 
         <div th:if="${errorMessages != null and !#lists.isEmpty(errorMessages)}" class="alert alert-danger">
@@ -54,10 +54,10 @@
         <!-- Requests list -->
         <div class="card">
             <div class="card-header">
-                <h2 th:text="${isAdmin ? 'All leave requests' : (isStudent ? 'My leave requests' : 'My leave requests')}"></h2>
-                <span class="text-muted" th:if="${isAdmin}">Approve or reject pending requests</span>
+                <h2 th:text="${isAdmin ? 'All leave requests' : (isStudent ? 'My leave requests' : (isClassTeacher ? 'Leave requests' : 'My leave requests'))}"></h2>
+                <span class="text-muted" th:if="${isAdmin or isClassTeacher}">Approve or reject pending requests</span>
             </div>
-            <div class="filter-bar" th:if="${isAdmin}">
+            <div class="filter-bar" th:if="${isAdmin or isClassTeacher}">
                 <form method="get" th:action="@{/attendance/leave}" class="filter-form">
                     <div class="filter-group">
                         <label for="statusFilter">Status</label>
@@ -74,24 +74,24 @@
                 <table class="table">
                     <thead>
                     <tr>
-                        <th th:if="${isAdmin}">Applicant</th>
-                        <th th:if="${isAdmin}">Class</th>
+                        <th th:if="${isAdmin or isClassTeacher}">Applicant</th>
+                        <th th:if="${isAdmin or isClassTeacher}">Class</th>
                         <th>From</th>
                         <th>To</th>
                         <th>Reason</th>
                         <th>Status</th>
-                        <th th:if="${isAdmin}">Actions</th>
+                        <th th:if="${isAdmin or isClassTeacher}">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:each="r : ${requests}">
-                        <td th:if="${isAdmin}" class="font-medium" th:text="${r.applicantDisplayName}"></td>
-                        <td th:if="${isAdmin}" th:text="${r.applicantClassDisplay}"></td>
+                        <td th:if="${isAdmin or isClassTeacher}" class="font-medium" th:text="${r.applicantDisplayName}"></td>
+                        <td th:if="${isAdmin or isClassTeacher}" th:text="${r.applicantClassDisplay}"></td>
                         <td th:text="${r.fromDate}"></td>
                         <td th:text="${r.toDate}"></td>
                         <td class="text-muted" th:text="${r.reason}"></td>
                         <td><span class="fee-status" th:classappend="'fee-' + ${r.status}" th:text="${r.status}"></span></td>
-                        <td th:if="${isAdmin}">
+                        <td th:if="${isAdmin or isClassTeacher}">
                             <div th:if="${r.status.name() == 'pending'}">
                                 <form th:action="@{/attendance/leave/{id}/review(id=${r.id})}" method="post"
                                       class="flex gap-2" style="align-items:center;">
@@ -117,9 +117,9 @@
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(requests)}">
-                        <td th:attr="colspan=${isAdmin ? 7 : 5}" class="empty-cell">
-                            <span th:if="${isAdmin}">No leave requests yet.</span>
-                            <span th:unless="${isAdmin}">You haven't applied for any leave yet.</span>
+                        <td th:attr="colspan=${(isAdmin or isClassTeacher) ? 7 : 5}" class="empty-cell">
+                            <span th:if="${isAdmin or isClassTeacher}">No leave requests yet.</span>
+                            <span th:unless="${isAdmin or isClassTeacher}">You haven't applied for any leave yet.</span>
                         </td>
                     </tr>
                     </tbody>

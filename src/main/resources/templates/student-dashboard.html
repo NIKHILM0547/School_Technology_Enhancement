@@ -120,6 +120,29 @@
             </div>
         </div>
 
+        <!-- ── Announcements ── -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Announcements</h2>
+                <a class="card-link" th:href="@{/announcements}">View all &rarr;</a>
+            </div>
+            <div class="review-list">
+                <article class="review-item" th:each="a : ${recentAnnouncements}">
+                    <div class="review-head">
+                        <div class="review-avatar" th:text="${#strings.substring(a.postedBy.name, 0, 1)}">A</div>
+                        <div class="review-meta">
+                            <div class="review-time" th:text="${#temporals.format(a.createdAt, 'dd MMM yyyy, hh:mm a')}"></div>
+                        </div>
+                    </div>
+                    <h3 class="review-title" th:text="${a.title}"></h3>
+                    <p class="review-content" th:text="${a.message}"></p>
+                </article>
+                <p class="empty-note" th:if="${#lists.isEmpty(recentAnnouncements)}">
+                    No announcements yet. Check back soon for updates from the administration.
+                </p>
+            </div>
+        </div>
+
         <!-- ── My reviews / suggestions ── -->
         <div class="card">
             <div class="card-header">

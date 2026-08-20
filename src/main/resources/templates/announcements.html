@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('Announcements')}"></head>
+<body>
+<div class="shell">
+    <aside th:replace="~{fragments/layout :: sidebar('announcements')}"></aside>
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <div class="eyebrow">School updates</div>
+                <h1>Announcements</h1>
+                <div class="text-muted">Day-to-day updates from the school administration, visible to all teachers and students.</div>
+            </div>
+        </header>
+
+        <!-- Post form (admins only) -->
+        <div class="card" th:if="${isAdmin}">
+            <div class="card-header">
+                <h2>Post a new announcement</h2>
+            </div>
+            <div class="card-note" th:if="${errorMessage != null}" th:text="${errorMessage}"></div>
+            <form th:action="@{/announcements/post}" method="post">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="title">Title</label>
+                        <input id="title" type="text" name="title" required maxlength="200"
+                               placeholder="e.g. Emergency holiday tomorrow, Annual sports day update..."/>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" rows="4" required maxlength="4000"
+                                  placeholder="Write the full update that teachers and students should see..."></textarea>
+                    </div>
+                </div>
+                <button class="btn btn-primary" type="submit" style="margin-top:12px;">Post announcement</button>
+            </form>
+        </div>
+
+        <!-- Announcement list -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Latest announcements</h2>
+            </div>
+            <div class="review-list">
+                <article class="review-item" th:each="a : ${announcements}">
+                    <div class="review-head">
+                        <div class="review-avatar" th:text="${#strings.substring(a.postedBy.name, 0, 1)}">A</div>
+                        <div class="review-meta">
+                            <div class="review-author">
+                                <span class="font-medium" th:text="${a.postedBy.name}"></span>
+                                <span class="badge badge-teacher">Admin</span>
+                            </div>
+                            <div class="review-time" th:text="${#temporals.format(a.createdAt, 'dd MMM yyyy, hh:mm a')}"></div>
+                        </div>
+                        <form class="review-actions" th:if="${isAdmin}"
+                              th:action="@{/announcements/{id}/delete(id=${a.id})}" method="post">
+                            <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                        </form>
+                    </div>
+                    <h3 class="review-title" th:text="${a.title}"></h3>
+                    <p class="review-content" th:text="${a.message}"></p>
+                </article>
+                <p class="empty-note" th:if="${#lists.isEmpty(announcements)}">
+                    No announcements yet. Check back soon for updates from the administration.
+                </p>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

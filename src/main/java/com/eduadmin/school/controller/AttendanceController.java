@@ -84,10 +84,15 @@ public class AttendanceController {
         String nameTrim = (name != null && !name.isBlank()) ? name.trim() : "";
         String nameQuery = nameTrim.toLowerCase();
 
-        // Teachers see only their own class-teacher class; admins see everyone.
-        List<Student> visibleStudents = ("teacher".equals(typeQuery) || isTeacher)
-                ? List.of()
-                : studentRepository.findAllByOrderByLastNameAsc();
+        // Teachers see their own class-teacher class; admins see everyone.
+        List<Student> visibleStudents;
+        if (isTeacher) {
+            visibleStudents = studentsOfClass(user);
+        } else if ("teacher".equals(typeQuery)) {
+            visibleStudents = List.of();
+        } else {
+            visibleStudents = studentRepository.findAllByOrderByLastNameAsc();
+        }
 
         Map<Long, Attendance> studentRecords = new HashMap<>();
         for (Attendance a : attendanceRepository.findByDate(selectedDate)) {
@@ -104,8 +109,11 @@ public class AttendanceController {
             if (classFiltered && !classQuery.equals(s.getClassDisplay())) continue;
             if (!nameQuery.isEmpty() && !s.getFullName().toLowerCase().contains(nameQuery)) continue;
             Attendance rec = studentRecords.get(s.getId());
-            AttendanceStatus st = (rec != null) ? rec.getStatus() : AttendanceStatus.present;
-            if (!anyStatus && st != selectedStatus) continue;
+            // Do NOT fabricate a status: students without a record on this date
+            // are shown as "Unmarked" instead of a made-up "present".
+            if (rec == null && !anyStatus) continue;
+            AttendanceStatus st = (rec != null) ? rec.getStatus() : null;
+            if (rec != null && !anyStatus && st != selectedStatus) continue;
             rows.add(new AttendanceRow(rec != null ? rec.getId() : null, "student", s.getFullName(), s.getClassDisplay(),
                     selectedDate, st, rec != null ? rec.getRemarks() : null));
         }
@@ -114,8 +122,9 @@ public class AttendanceController {
             for (User u : userRepository.findByRole(Role.teacher)) {
                 if (!nameQuery.isEmpty() && !u.getName().toLowerCase().contains(nameQuery)) continue;
                 StaffAttendance rec = staffRecords.get(u.getId());
-                AttendanceStatus st = (rec != null) ? rec.getStatus() : AttendanceStatus.present;
-                if (!anyStatus && st != selectedStatus) continue;
+                if (rec == null && !anyStatus) continue;
+                AttendanceStatus st = (rec != null) ? rec.getStatus() : null;
+                if (rec != null && !anyStatus && st != selectedStatus) continue;
                 rows.add(new AttendanceRow(rec != null ? rec.getId() : null, "staff", u.getName(), "Staff",
                         selectedDate, st, rec != null ? rec.getRemarks() : null));
             }

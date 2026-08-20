@@ -12,7 +12,7 @@
             </div>
             <div class="page-actions">
                 <a th:href="@{/attendance/rollcall}" class="btn btn-ghost">Student roll call</a>
-                <a th:href="@{/attendance/rollcall-staff}" class="btn btn-primary" sec:authorize="hasRole('admin')">Staff roll call</a>
+                <a th:href="@{/attendance/rollcall-staff}" class="btn btn-primary" th:if="${!isTeacher}" sec:authorize="hasRole('admin')">Staff roll call</a>
             </div>
         </header>
 
@@ -21,7 +21,7 @@
                 <form method="get" th:action="@{/attendance}" class="filter-form">
                     <div class="filter-group">
                         <label for="dateFilter">Date</label>
-                        <input id="dateFilter" type="date" name="date" th:value="${selectedDate}"/>
+                        <input id="dateFilter" type="date" name="date" th:value="${selectedDate}" onchange="this.form.submit()"/>
                     </div>
                     <div class="filter-group" th:unless="${isTeacher}">
                         <label for="typeFilter">Type</label>
@@ -73,7 +73,8 @@
                         <td class="font-medium" th:text="${r.name}"></td>
                         <td th:text="${r.className}"></td>
                         <td th:text="${r.date}"></td>
-                        <td><span class="fee-status" th:classappend="'fee-' + ${r.status}" th:text="${r.status}"></span></td>
+                        <td><span th:if="${r.status != null}" class="fee-status" th:classappend="'fee-' + ${r.status}" th:text="${r.status}"></span>
+                            <span th:if="${r.status == null}" class="fee-status fee-unmarked" th:text="'Unmarked'"></span></td>
                         <td th:text="${r.remarks ?: '—'}" class="text-muted"></td>
                         <td>
                             <button class="btn btn-ghost btn-sm"

@@ -32,10 +32,12 @@ public class SecurityConfig {
                 .requestMatchers("/attendance/rollcall", "/attendance/save",
                         "/attendance/{id}/edit").hasAnyRole("admin", "teacher")
                 .requestMatchers("/attendance/leave/apply").hasAnyRole("admin", "teacher", "student")
-                .requestMatchers("/attendance/leave/{id}/review").hasRole("admin")
+                .requestMatchers("/attendance/leave/{id}/review").hasAnyRole("admin", "teacher")
                 .requestMatchers("/attendance/**").hasAnyRole("admin", "teacher", "student")
                 // Notes: all authenticated roles; access control enforced in the controller
                 .requestMatchers("/notes/**").hasAnyRole("admin", "teacher", "student")
+                // Announcements: everyone can view; posting/deleting is admin-only (enforced in the controller)
+                .requestMatchers("/announcements/**").hasAnyRole("admin", "teacher", "student")
                 // Report cards: admins manage settings, admins + teachers generate PDFs
                 .requestMatchers("/reportcards/settings/logo").hasAnyRole("admin", "teacher")
                 .requestMatchers("/reportcards/**").hasAnyRole("admin", "teacher")

@@ -68,6 +68,17 @@ public class UserController {
                 && user.getClassTeacherOf() != null && !user.getClassTeacherOf().isBlank();
     }
 
+    /** Map of class display (e.g. "6-A") -> name of the teacher who is its class teacher. */
+    private Map<String, String> classTeacherNames() {
+        Map<String, String> names = new HashMap<>();
+        for (User t : userRepository.findByRole(Role.teacher)) {
+            if (t.getClassTeacherOf() != null && !t.getClassTeacherOf().isBlank()) {
+                names.put(t.getClassTeacherOf().trim(), t.getName());
+            }
+        }
+        return names;
+    }
+
     @GetMapping
     public String list(@RequestParam(required = false) String role,
                        @RequestParam(required = false) String classFilter,
@@ -95,6 +106,7 @@ public class UserController {
             model.addAttribute("availableRoles", List.of(Role.student));
             model.addAttribute("subjects", SUBJECTS);
             model.addAttribute("classes", CLASSES);
+            model.addAttribute("classTeacherNames", classTeacherNames());
             model.addAttribute("selectedRole", "student");
             model.addAttribute("selectedClass", teacherClass);
             model.addAttribute("name", nameQuery);
@@ -127,6 +139,7 @@ public class UserController {
         model.addAttribute("availableRoles", List.of(Role.teacher, Role.student));
         model.addAttribute("subjects", SUBJECTS);
         model.addAttribute("classes", CLASSES);
+        model.addAttribute("classTeacherNames", classTeacherNames());
         model.addAttribute("selectedRole", role);
         model.addAttribute("selectedClass", classQuery);
         model.addAttribute("name", nameQuery);
@@ -194,6 +207,7 @@ public class UserController {
             model.addAttribute("availableRoles", classTeacher ? List.of(Role.student) : List.of(Role.teacher, Role.student));
             model.addAttribute("subjects", SUBJECTS);
             model.addAttribute("classes", CLASSES);
+            model.addAttribute("classTeacherNames", classTeacherNames());
             model.addAttribute("filterRoles", classTeacher ? List.of("student") : List.of("teacher", "student"));
             model.addAttribute("selectedRole", classTeacher ? "student" : null);
             model.addAttribute("selectedClass", classTeacher ? current.getClassTeacherOf() : null);

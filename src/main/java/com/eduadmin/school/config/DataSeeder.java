@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -75,6 +76,7 @@ public class DataSeeder implements CommandLineRunner {
     private final ClassTeacherRemarkRepository remarkRepository;
     private final LeaveRequestRepository leaveRepository;
     private final PaymentRepository paymentRepository;
+    private final AnnouncementRepository announcementRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(UserRepository userRepository, StudentRepository studentRepository,
@@ -82,6 +84,7 @@ public class DataSeeder implements CommandLineRunner {
                       AttendanceRepository attendanceRepository, ReviewRepository reviewRepository,
                       ClassTeacherRemarkRepository remarkRepository,
                       LeaveRequestRepository leaveRepository, PaymentRepository paymentRepository,
+                      AnnouncementRepository announcementRepository,
                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
@@ -92,6 +95,7 @@ public class DataSeeder implements CommandLineRunner {
         this.remarkRepository = remarkRepository;
         this.leaveRepository = leaveRepository;
         this.paymentRepository = paymentRepository;
+        this.announcementRepository = announcementRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -108,6 +112,7 @@ public class DataSeeder implements CommandLineRunner {
         seedReviews();
         seedClassTeacherRemarks();
         seedDemoLeaveRequests();
+        seedAnnouncements();
     }
 
     private void seedUsers() {
@@ -378,38 +383,46 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    /** Attendance for the last 20 weekdays for any student missing records. */
+    /** Attendance for the recent weekdays (including today) for any student missing records. */
     private void seedMissingAttendance() {
         List<LocalDate> weekdays = lastWeekdays(20);
         int count = 0;
         for (Student student : studentRepository.findAll()) {
-            if (!attendanceRepository.findByStudent(student).isEmpty()) continue;
+            Set<LocalDate> existing = attendanceRepository.findByStudent(student).stream()
+                    .map(Attendance::getDate)
+                    .collect(Collectors.toSet());
             List<Attendance> records = new ArrayList<>();
+            long hash = (student.getId() != null ? student.getId() : 0L) * 2654435761L;
             for (int d = 0; d < weekdays.size(); d++) {
+                LocalDate day = weekdays.get(d);
+                if (existing.contains(day)) continue;
                 AttendanceStatus status = AttendanceStatus.present;
-                if ((d * 5) % 13 == 0) {
+                int roll = (int) ((hash ^ ((long) d * 97)) & 0x7fffffff) % 100;
+                if (roll < 5) {
                     status = AttendanceStatus.absent;
-                } else if (d % 9 == 0) {
+                } else if (roll < 8) {
                     status = AttendanceStatus.late;
                 }
                 Attendance record = new Attendance();
                 record.setStudent(student);
-                record.setDate(weekdays.get(d));
+                record.setDate(day);
                 record.setStatus(status);
                 records.add(record);
             }
-            attendanceRepository.saveAll(records);
-            count++;
+            if (!records.isEmpty()) {
+                attendanceRepository.saveAll(records);
+                count++;
+            }
         }
         if (count > 0) {
             System.out.println("Seeded attendance for " + count + " students.");
         }
     }
 
-    /** The most recent Mon-Fri days before today. */
+    /** The most recent Mon-Fri days, starting from today. */
     private List<LocalDate> lastWeekdays(int count) {
         List<LocalDate> days = new ArrayList<>();
-        LocalDate day = LocalDate.now().minusDays(1);
+        LocalDate day = LocalDate.now();
         while (days.size() < count) {
             java.time.DayOfWeek dow = day.getDayOfWeek();
             if (dow != java.time.DayOfWeek.SATURDAY && dow != java.time.DayOfWeek.SUNDAY) {
@@ -488,6 +501,31 @@ public class DataSeeder implements CommandLineRunner {
             request.setStatus(LeaveStatus.pending);
             request.setAppliedAt(LocalDateTime.now());
             leaveRepository.save(request);
+        });
+    }
+
+    /** Sample announcements posted by the demo admin so all roles see the
+     *  announcements feature out of the box. Idempotent: only seeds when empty. */
+    private void seedAnnouncements() {
+        if (announcementRepository.count() > 0) return;
+        userRepository.findByEmail("admin@school.test").ifPresent(admin -> {
+            String[][] items = {
+                    {"Welcome to the new academic year!",
+                     "Welcome back to all students, teachers and parents. Classes begin today at 8:00 AM. Please ensure all students carry their diaries and ID cards."},
+                    {"Annual Sports Day update",
+                     "The Annual Sports Day has been scheduled for next month. Class teachers are requested to share the list of participating students with the sports department by Friday."},
+                    {"Parent-teacher meeting",
+                     "A parent-teacher meeting will be held this Saturday from 9:00 AM to 12:00 PM. Teachers are requested to be present in their respective classrooms."}
+            };
+            LocalDateTime now = LocalDateTime.now();
+            List<Announcement> list = new ArrayList<>();
+            for (int i = 0; i < items.length; i++) {
+                Announcement a = new Announcement(items[i][0], items[i][1], admin);
+                a.setCreatedAt(now.minusDays(i * 2));
+                list.add(a);
+            }
+            announcementRepository.saveAll(list);
+            System.out.println("Seeded demo announcements.");
         });
     }
 }

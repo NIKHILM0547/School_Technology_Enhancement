@@ -67,7 +67,7 @@
                         <td th:text="${u.role.name() == 'student' ? (u.admissionNo ?: '—') : '—'}" class="text-muted"></td>
                         <td><span class="badge" th:text="${u.role}"></span></td>
                         <td th:text="${u.role.name() == 'teacher' ? u.subject : (u.role.name() == 'student' ? (u.subjects ?: '—') : '—')}" class="text-muted"></td>
-                        <td th:text="${u.role.name() == 'teacher' ? u.classTeacherOf : '—'}" class="text-muted"></td>
+                        <td th:text="${u.role.name() == 'teacher' ? u.classTeacherOf : (classTeacherNames[u.assignedClasses] ?: '—')}" class="text-muted"></td>
                         <td th:text="${u.assignedClasses ?: '—'}" class="text-muted"></td>
                         <td>
                             <div class="flex gap-2" th:if="${u.role.name() != 'admin'}">
