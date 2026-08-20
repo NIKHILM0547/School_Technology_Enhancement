@@ -24,8 +24,8 @@ public class SecurityConfig {
                 // Fees: admins manage everything, students can view/pay their own
                 .requestMatchers("/fees/structure/**").hasRole("admin")
                 .requestMatchers("/fees/**").hasAnyRole("admin", "student")
-                // Only admins can manage users
-                .requestMatchers("/users/**").hasRole("admin")
+                // Admins manage all users; class teachers create/manage student users of their own class
+                .requestMatchers("/users/**").hasAnyRole("admin", "teacher")
                 // Attendance: admins + teachers can mark student attendance,
                 // staff attendance is admin-only, students can only view their own
                 .requestMatchers("/attendance/rollcall-staff", "/attendance/save-staff").hasRole("admin")

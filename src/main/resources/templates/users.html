@@ -8,17 +8,20 @@
         <header class="page-header">
             <div>
                 <div class="eyebrow">Accounts</div>
-                <h1>Users</h1>
+                <h1 th:text="${isClassTeacher} ? 'My Students' : 'Users'">Users</h1>
+                <div class="text-muted" th:if="${isClassTeacher}">Register login accounts for students of class
+                    <strong th:text="${teacherClass}"></strong>.</div>
             </div>
             <div class="page-actions">
-                <button class="btn btn-primary" onclick="showAddModal()">+ Register user</button>
+                <button class="btn btn-primary" onclick="showAddModal()"
+                        th:text="${isClassTeacher} ? '+ Register student' : '+ Register user'">+ Register user</button>
             </div>
         </header>
 
         <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
         <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
         <div class="card">
-            <div class="filter-bar">
+            <div class="filter-bar" th:if="${!isClassTeacher}">
                 <form method="get" th:action="@{/users}" class="filter-form">
                     <div class="filter-group">
                         <label for="roleFilter">Role</label>
@@ -111,13 +114,14 @@
                         <label for="mobile">Mobile</label>
                         <input id="mobile" type="tel" th:field="*{mobile}" placeholder="e.g. 9876543210" required/>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" th:if="${!isClassTeacher}">
                         <label for="role">Role</label>
                         <select id="role" th:field="*{role}" onchange="toggleTeacherFields()" required>
                             <option value="">Select role</option>
                             <option th:each="r : ${availableRoles}" th:value="${r}" th:text="${r}"></option>
                         </select>
                     </div>
+                    <input type="hidden" name="role" value="student" th:if="${isClassTeacher}"/>
                     <div class="form-group full-width subject-field" style="display:none;">
                         <label>Class Teacher of</label>
                         <select id="classTeacherOf" name="classTeacherOf" th:value="*{classTeacherOf}">
@@ -144,10 +148,17 @@
                     </div>
                     <div class="form-group full-width class-field-student" style="display:none;">
                         <label>Class</label>
-                        <select id="studentClass" name="assignedClasses" th:value="*{assignedClasses}" onchange="updateStudentClassInput()">
-                            <option value="">Select class</option>
-                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
-                        </select>
+                        <th:block th:if="${!isClassTeacher}">
+                            <select id="studentClass" name="assignedClasses" th:value="*{assignedClasses}" onchange="updateStudentClassInput()">
+                                <option value="">Select class</option>
+                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                        </th:block>
+                        <th:block th:if="${isClassTeacher}">
+                            <input id="studentClass" name="assignedClasses" th:value="${teacherClass}" readonly
+                                   class="readonly-field"/>
+                            <span class="text-muted hint">Class is attached automatically to your class.</span>
+                        </th:block>
                     </div>
                     <div class="form-group full-width class-field-student" style="display:none;">
                         <label>Admission number</label>
@@ -230,10 +241,17 @@
                     </div>
                     <div class="form-group full-width edit-class-field-student" style="display:none;">
                         <label>Class</label>
-                        <select id="editStudentClass" name="assignedClasses" onchange="updateEditStudentClassInput()">
-                            <option value="">Select class</option>
-                            <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
-                        </select>
+                        <th:block th:if="${!isClassTeacher}">
+                            <select id="editStudentClass" name="assignedClasses" onchange="updateEditStudentClassInput()">
+                                <option value="">Select class</option>
+                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
+                            </select>
+                        </th:block>
+                        <th:block th:if="${isClassTeacher}">
+                            <input id="editStudentClass" name="assignedClasses" th:value="${teacherClass}" readonly
+                                   class="readonly-field"/>
+                            <span class="text-muted hint">Class is attached automatically to your class.</span>
+                        </th:block>
                     </div>
                     <div class="form-group full-width edit-class-field-student" style="display:none;">
                         <label>Subjects</label>
@@ -263,6 +281,7 @@
     .subject-chip input:checked ~ span { color: #4338ca; font-weight: 600; }
     .subject-chip:has(input:checked) { background: #e0e7ff; border-color: #6366f1; }
     .hint { font-size: 12px; color: #64748b; display: block; margin-top: 4px; }
+    .readonly-field { background: #f1f5f9; color: #334155; cursor: not-allowed; }
 </style>
 
 <script>
@@ -270,6 +289,10 @@ function showAddModal() {
     document.getElementById('userModal').style.display = 'flex';
     clearTeacherSelections();
     toggleTeacherFields();
+    var classField = document.getElementById('studentClass');
+    if (classField && classField.readOnly) {
+        document.getElementById('assignedClasses').value = classField.value;
+    }
 }
 
 function closeModal() {
@@ -280,7 +303,8 @@ function closeModal() {
 var teachPairs = [];
 
 function toggleTeacherFields() {
-    var role = document.getElementById('role').value;
+    var roleSelect = document.getElementById('role');
+    var role = roleSelect ? roleSelect.value : 'student';
     var subjectFields = document.querySelectorAll('.subject-field');
     for (var i = 0; i < subjectFields.length; i++) {
         subjectFields[i].style.display = (role === 'teacher') ? 'block' : 'none';
@@ -292,16 +316,19 @@ function toggleTeacherFields() {
     var hiddenInput = document.getElementById('assignedClasses');
     if (role === 'student') {
         hiddenInput.setAttribute('name', 'assignedClasses');
-        document.getElementById('subject').removeAttribute('name');
+        var subjectEl = document.getElementById('subject');
+        if (subjectEl) subjectEl.removeAttribute('name');
         if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').setAttribute('name', 'subjects');
         wireStudentSubjectChecks('studentSubjectsGrid', 'studentSubjects');
     } else if (role === 'teacher') {
         hiddenInput.setAttribute('name', 'assignedClasses');
-        document.getElementById('subject').setAttribute('name', 'subject');
+        var subjectEl2 = document.getElementById('subject');
+        if (subjectEl2) subjectEl2.setAttribute('name', 'subject');
         if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
     } else {
         hiddenInput.removeAttribute('name');
-        document.getElementById('subject').removeAttribute('name');
+        var subjectEl3 = document.getElementById('subject');
+        if (subjectEl3) subjectEl3.removeAttribute('name');
         if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
     }
 }
@@ -352,7 +379,7 @@ function clearTeacherSelections() {
     document.getElementById('assignedClasses').value = '';
     document.getElementById('classTeacherOf').value = '';
     var studentSelect = document.getElementById('studentClass');
-    if (studentSelect) studentSelect.value = '';
+    if (studentSelect && !studentSelect.readOnly) studentSelect.value = '';
     var admissionInput = document.getElementById('studentAdmissionNo');
     if (admissionInput) admissionInput.value = '';
     precheckStudentSubjects('studentSubjectsGrid', 'studentSubjects', '');

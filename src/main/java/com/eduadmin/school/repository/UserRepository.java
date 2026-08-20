@@ -16,6 +16,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(Role role);
     List<User> findByAssignedClassesContaining(String classFilter);
 
+    /** All users with the given role and the exact assigned class (used by class teachers). */
+    List<User> findByRoleAndAssignedClasses(Role role, String assignedClasses);
+
     /** The class teacher user for a class (e.g. "6-A"), if one is assigned. */
     Optional<User> findByRoleAndClassTeacherOf(Role role, String classTeacherOf);
 

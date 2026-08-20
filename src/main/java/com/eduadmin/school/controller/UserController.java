@@ -6,6 +6,8 @@ import com.eduadmin.school.model.User;
 import com.eduadmin.school.repository.StudentRepository;
 import com.eduadmin.school.repository.UserRepository;
 import com.eduadmin.school.service.SmsService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -53,11 +55,56 @@ public class UserController {
         this.smsService = smsService;
     }
 
+    /** The logged-in user (email = principal name), or null if none. */
+    private User currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) return null;
+        return userRepository.findByEmail(auth.getName()).orElse(null);
+    }
+
+    /** True if the given user is a teacher who is the class teacher of a class. */
+    private boolean isClassTeacher(User user) {
+        return user != null && user.getRole() == Role.teacher
+                && user.getClassTeacherOf() != null && !user.getClassTeacherOf().isBlank();
+    }
+
     @GetMapping
     public String list(@RequestParam(required = false) String role,
                        @RequestParam(required = false) String classFilter,
                        @RequestParam(required = false) String name,
                        Model model) {
+        User current = currentUser();
+        boolean classTeacher = isClassTeacher(current);
+        String teacherClass = classTeacher ? current.getClassTeacherOf() : null;
+
+        String nameQuery = (name != null && !name.isBlank()) ? name.trim() : "";
+
+        // Class teachers only see (and manage) the student accounts of their own class
+        if (classTeacher) {
+            List<User> users = userRepository.findByRoleAndAssignedClasses(Role.student, teacherClass);
+            users = users.stream()
+                    .filter(u -> nameQuery.isBlank() || u.getName().toLowerCase().contains(nameQuery.toLowerCase()))
+                    .toList();
+            Map<Long, String> admissionByUser = new HashMap<>();
+            for (Student s : studentRepository.findAll()) {
+                if (s.getUser() != null) admissionByUser.put(s.getUser().getId(), s.getAdmissionNo());
+            }
+            for (User u : users) u.setAdmissionNo(admissionByUser.get(u.getId()));
+            model.addAttribute("users", users);
+            model.addAttribute("newUser", new User());
+            model.addAttribute("availableRoles", List.of(Role.student));
+            model.addAttribute("subjects", SUBJECTS);
+            model.addAttribute("classes", CLASSES);
+            model.addAttribute("selectedRole", "student");
+            model.addAttribute("selectedClass", teacherClass);
+            model.addAttribute("name", nameQuery);
+            model.addAttribute("filterRoles", List.of("student"));
+            model.addAttribute("isClassTeacher", true);
+            model.addAttribute("teacherClass", teacherClass);
+            model.addAttribute("activePage", "users");
+            return "users";
+        }
+
         boolean anyRole = role == null || role.isBlank();
         Role selected = null;
         if (!anyRole) {
@@ -69,7 +116,6 @@ public class UserController {
             }
         }
         String classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
-        String nameQuery = (name != null && !name.isBlank()) ? name.trim() : "";
         List<User> users = userRepository.search(anyRole, selected, classQuery, nameQuery);
         Map<Long, String> admissionByUser = new HashMap<>();
         for (Student s : studentRepository.findAll()) {
@@ -85,6 +131,8 @@ public class UserController {
         model.addAttribute("selectedClass", classQuery);
         model.addAttribute("name", nameQuery);
         model.addAttribute("filterRoles", List.of("teacher", "student"));
+        model.addAttribute("isClassTeacher", false);
+        model.addAttribute("teacherClass", null);
         model.addAttribute("activePage", "users");
         return "users";
     }
@@ -93,6 +141,16 @@ public class UserController {
     public String create(@ModelAttribute("newUser") User user,
                          @RequestParam(required = false) String subjects,
                          BindingResult result, Model model) {
+        User current = currentUser();
+        boolean classTeacher = isClassTeacher(current);
+
+        // A class teacher can only register student accounts and only for their own class
+        if (classTeacher) {
+            user.setRole(Role.student);
+            user.setAssignedClasses(current.getClassTeacherOf());
+            user.setClassTeacherOf(null);
+        }
+
         boolean hasError = false;
 
         if (user.getName() == null || user.getName().isBlank()) {
@@ -133,12 +191,14 @@ public class UserController {
 
         if (hasError) {
             model.addAttribute("users", userRepository.findAll());
-            model.addAttribute("availableRoles", List.of(Role.teacher, Role.student));
+            model.addAttribute("availableRoles", classTeacher ? List.of(Role.student) : List.of(Role.teacher, Role.student));
             model.addAttribute("subjects", SUBJECTS);
             model.addAttribute("classes", CLASSES);
-            model.addAttribute("filterRoles", List.of("teacher", "student"));
-            model.addAttribute("selectedRole", null);
-            model.addAttribute("selectedClass", null);
+            model.addAttribute("filterRoles", classTeacher ? List.of("student") : List.of("teacher", "student"));
+            model.addAttribute("selectedRole", classTeacher ? "student" : null);
+            model.addAttribute("selectedClass", classTeacher ? current.getClassTeacherOf() : null);
+            model.addAttribute("isClassTeacher", classTeacher);
+            model.addAttribute("teacherClass", classTeacher ? current.getClassTeacherOf() : null);
             model.addAttribute("activePage", "users");
             return "users";
         }
@@ -199,9 +259,24 @@ public class UserController {
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable Long id) {
+    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        User current = currentUser();
+        boolean classTeacher = isClassTeacher(current);
+        User target = userRepository.findById(id).orElseThrow();
+        if (classTeacher && !mayManageStudent(current, target)) {
+            redirectAttributes.addFlashAttribute("error", "You can only manage student accounts of your own class");
+            return "redirect:/users";
+        }
         userRepository.deleteById(id);
         return "redirect:/users";
+    }
+
+    /** Class teachers may only manage a user if it is a student of their own class. */
+    private boolean mayManageStudent(User classTeacher, User target) {
+        if (target.getRole() != Role.student) return false;
+        String targetClass = target.getAssignedClasses();
+        String ownClass = classTeacher.getClassTeacherOf();
+        return targetClass != null && targetClass.trim().equals(ownClass);
     }
 
     @PostMapping("/{id}/edit")
@@ -215,7 +290,17 @@ public class UserController {
                          @RequestParam(required = false) String classTeacherOf,
                          @RequestParam(required = false) String subjects,
                          RedirectAttributes redirectAttributes) {
+        User current = currentUser();
+        boolean classTeacher = isClassTeacher(current);
         User user = userRepository.findById(id).orElseThrow();
+
+        if (classTeacher) {
+            if (!mayManageStudent(current, user)) {
+                redirectAttributes.addFlashAttribute("error", "You can only manage student accounts of your own class");
+                return "redirect:/users";
+            }
+            assignedClasses = current.getClassTeacherOf();
+        }
 
         if (!user.getEmail().equals(email) && userRepository.existsByEmail(email)) {
             redirectAttributes.addFlashAttribute("error", "A user with this email already exists");
