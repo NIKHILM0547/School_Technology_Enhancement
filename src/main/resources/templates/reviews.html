@@ -63,6 +63,32 @@
                     </div>
                     <h3 class="review-title" th:text="${r.title}"></h3>
                     <p class="review-content" th:text="${r.content}"></p>
+
+                    <!-- Replies -->
+                    <div class="review-replies" th:if="${!repliesByReview[r.id].isEmpty()}">
+                        <div class="reply-item" th:each="rep : ${repliesByReview[r.id]}">
+                            <div class="reply-head">
+                                <div class="review-avatar reply-avatar"
+                                     th:text="${#strings.substring(rep.author.name, 0, 1)}">T</div>
+                                <div class="review-meta">
+                                    <div class="review-author">
+                                        <span class="font-medium" th:text="${rep.author.name}"></span>
+                                        <span class="badge" th:classappend="${rep.author.role.name() == 'teacher'} ? ' badge-teacher' : ''"
+                                              th:text="${rep.author.role.name() == 'teacher' ? 'Teacher' : 'Student'}"></span>
+                                    </div>
+                                    <div class="review-time" th:text="${#temporals.format(rep.createdAt, 'dd MMM yyyy, hh:mm a')}"></div>
+                                </div>
+                            </div>
+                            <p class="review-content" th:text="${rep.content}"></p>
+                        </div>
+                    </div>
+
+                    <!-- Reply form -->
+                    <form class="reply-form" th:if="${canReply}"
+                          th:action="@{/reviews/{id}/reply(id=${r.id})}" method="post">
+                        <input type="text" name="content" required placeholder="Write a reply..."/>
+                        <button class="btn btn-ghost btn-sm" type="submit">Reply</button>
+                    </form>
                 </article>
                 <p class="empty-note" th:if="${#lists.isEmpty(reviews)}">No posts yet. Be the first to share a review.</p>
             </div>

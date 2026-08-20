@@ -44,6 +44,10 @@ public class FeeController {
         if (user != null && user.getRole() == Role.student) {
             return studentView(model, user);
         }
+        // Teachers have no access to the fees module.
+        if (user != null && user.getRole() == Role.teacher) {
+            return "redirect:/";
+        }
         return adminView(model, studentId, classFilter, name);
     }
 

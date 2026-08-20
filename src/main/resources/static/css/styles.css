@@ -179,6 +179,12 @@ body {
   color: var(--gray-800);
 }
 
+.user-class {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
 .user-role {
   font-size: 11px;
   font-weight: 500;
@@ -561,6 +567,54 @@ body {
   margin: 0;
   color: var(--gray-600);
   white-space: pre-line;
+}
+
+/* ── Reviews: replies ─────────────────────────── */
+
+.review-replies {
+  margin: 14px 0 6px 52px;
+  padding: 4px 0 4px 16px;
+  border-left: 2px solid var(--gray-100);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.reply-item {
+  padding: 12px;
+  background: var(--gray-50);
+  border-radius: 8px;
+}
+
+.reply-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.reply-avatar {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.badge-teacher {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+.reply-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reply-form input[type="text"] {
+  flex: 1;
+  font-size: 13px;
 }
 
 @media (max-width: 1100px) {
