@@ -67,7 +67,7 @@
         </div>
 
         <!-- Teacher signature (teachers only; used on generated report cards) -->
-        <div class="card" th:if="${isTeacher}">
+        <div class="card" th:if="${isTeacher}" id="teacherSignatureCard">
             <div class="card-header">
                 <h2>Your signature</h2>
                 <span class="text-muted">Shown on the Class Teacher signature line of every report card you generate</span>
@@ -142,7 +142,8 @@
                                class="link">View attendance</a>
                         </td>
                         <td>
-                            <form th:action="@{/reportcards/{id}/pdf(id=${s.id})}" method="get" class="reportgen-row">
+                            <form th:action="@{/reportcards/{id}/pdf(id=${s.id})}" method="get" class="reportgen-row reportgen-form"
+                                  data-student-name="${s.fullName}">
                                 <input type="hidden" name="year" th:value="${selectedYear}"/>
                                 <select name="term" class="term-input" required>
                                     <option th:each="t : ${termChoices}" th:value="${t}" th:text="${t}"
@@ -164,6 +165,26 @@
         </div>
     </main>
 </div>
+
+<!-- Signature reminder modal -->
+<div id="signatureModal" class="modal-overlay" style="display:none;"
+     onclick="if(event.target===this)closeSignatureModal()">
+    <div class="modal-card modal-sm">
+        <h2>Add your signature</h2>
+        <div class="modal-scroll">
+            <p class="signature-warning">
+                You haven't uploaded your signature yet, so it will be missing from the
+                <strong>Class Teacher</strong> line of the report card.
+            </p>
+            <p class="signature-warning-sub">Please add your signature first, or continue anyway.</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeSignatureModal()">Cancel</button>
+            <button type="button" class="btn btn-ghost" id="signatureContinueBtn">Continue anyway</button>
+            <button type="button" class="btn btn-primary" id="signatureAddBtn">Add signature</button>
+        </div>
+    </div>
+</div>
 <style>
     .brand-row { display: flex; gap: 20px; flex-wrap: wrap; }
     .brand-preview { flex: 0 0 110px; }
@@ -176,6 +197,51 @@
     .reportgen-row { display: flex; gap: 6px; }
     .term-input { width: 160px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
     .link { color: var(--primary, #2563eb); text-decoration: none; font-size: 13px; }
+    .signature-warning { font-size: 14px; line-height: 1.5; color: #334155; margin: 0 0 8px; }
+    .signature-warning-sub { font-size: 13px; color: #64748b; margin: 0; }
+    .modal-card.modal-sm { max-width: 420px; }
 </style>
+<script th:inline="javascript">
+var IS_TEACHER = /*[[${isTeacher}]]*/ false;
+var HAS_SIGNATURE = /*[[${hasSignature}]]*/ false;
+var pendingForm = null;
+
+function showSignatureModal(form) {
+    pendingForm = form;
+    document.getElementById('signatureModal').style.display = 'flex';
+}
+
+function closeSignatureModal() {
+    pendingForm = null;
+    document.getElementById('signatureModal').style.display = 'none';
+}
+
+function continueWithoutSignature() {
+    var form = pendingForm;
+    closeSignatureModal();
+    if (form) form.submit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('signatureContinueBtn').addEventListener('click', continueWithoutSignature);
+    document.getElementById('signatureAddBtn').addEventListener('click', function() {
+        var card = document.getElementById('teacherSignatureCard');
+        closeSignatureModal();
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            card.style.outline = '2px solid var(--primary, #2563eb)';
+            setTimeout(function() { card.style.outline = 'none'; }, 2000);
+        }
+    });
+    document.querySelectorAll('.reportgen-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (IS_TEACHER && !HAS_SIGNATURE) {
+                e.preventDefault();
+                showSignatureModal(form);
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>

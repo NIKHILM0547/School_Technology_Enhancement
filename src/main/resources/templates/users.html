@@ -134,25 +134,26 @@
                     </div>
                     <div class="form-group full-width subject-field" style="display:none;">
                         <label>Teaching assignments</label>
-                        <div class="teach-pair-row">
-                            <select id="teachClass" class="teach-select">
-                                <option value="">Class</option>
-                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
-                            </select>
-                            <select id="teachSubject" class="teach-select">
-                                <option value="">Subject</option>
-                                <option th:each="s : ${subjects}" th:value="${s}" th:text="${s}"></option>
-                            </select>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="addTeachPair()">Add</button>
-                        </div>
-                        <ul id="teachList" class="teach-list"></ul>
-                        <input type="hidden" id="subject" name="subject" th:value="*{subject}"/>
-                        <input type="hidden" id="assignedClasses" name="assignedClasses" th:value="*{assignedClasses}"/>
+                        <table class="teach-table">
+                            <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Subject</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody id="addTeachTableBody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;"
+                                onclick="addTeachRow('add')">+ Add row</button>
+                        <span class="text-muted hint">One row per class: pick the class and the subject taught there.</span>
+                        <input type="hidden" id="teacherSubjects" th:value="*{subject}"/>
+                        <input type="hidden" id="teacherClasses" th:value="*{assignedClasses}"/>
                     </div>
                     <div class="form-group full-width class-field-student" style="display:none;">
                         <label>Class</label>
                         <th:block th:if="${!isClassTeacher}">
-                            <select id="studentClass" name="assignedClasses" th:value="*{assignedClasses}" onchange="updateStudentClassInput()">
+                            <select id="studentClass" name="assignedClasses" th:value="*{assignedClasses}">
                                 <option value="">Select class</option>
                                 <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
                             </select>
@@ -227,31 +228,32 @@
                     </div>
                     <div class="form-group full-width edit-subject-field" style="display:none;">
                         <label>Teaching assignments</label>
-                        <div class="teach-pair-row">
-                            <select id="editTeachClass" class="teach-select">
-                                <option value="">Class</option>
-                                <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
-                            </select>
-                            <select id="editTeachSubject" class="teach-select">
-                                <option value="">Subject</option>
-                                <option th:each="s : ${subjects}" th:value="${s}" th:text="${s}"></option>
-                            </select>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="addEditTeachPair()">Add</button>
-                        </div>
-                        <ul id="editTeachList" class="teach-list"></ul>
-                        <input type="hidden" id="editSubject" name="subject"/>
-                        <input type="hidden" id="editAssignedClasses" name="assignedClasses"/>
+                        <table class="teach-table">
+                            <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Subject</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody id="editTeachTableBody"></tbody>
+                        </table>
+                        <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px;"
+                                onclick="addTeachRow('edit')">+ Add row</button>
+                        <span class="text-muted hint">One row per class: pick the class and the subject taught there.</span>
+                        <input type="hidden" id="editTeacherSubjects"/>
+                        <input type="hidden" id="editTeacherClasses"/>
                     </div>
                     <div class="form-group full-width edit-class-field-student" style="display:none;">
                         <label>Class</label>
                         <th:block th:if="${!isClassTeacher}">
-                            <select id="editStudentClass" name="assignedClasses" onchange="updateEditStudentClassInput()">
+                            <select id="editStudentClass">
                                 <option value="">Select class</option>
                                 <option th:each="c : ${classes}" th:value="${c}" th:text="${c}"></option>
                             </select>
                         </th:block>
                         <th:block th:if="${isClassTeacher}">
-                            <input id="editStudentClass" name="assignedClasses" th:value="${teacherClass}" readonly
+                            <input id="editStudentClass" th:value="${teacherClass}" readonly
                                    class="readonly-field"/>
                             <span class="text-muted hint">Class is attached automatically to your class.</span>
                         </th:block>
@@ -264,7 +266,7 @@
                                 <span th:text="${s}"></span>
                             </label>
                         </div>
-                        <input type="hidden" id="editStudentSubjects" name="subjects"/>
+                        <input type="hidden" id="editStudentSubjects"/>
                         <span class="text-muted hint">Tick the subjects this student studies.</span>
                     </div>
                 </div>
@@ -316,17 +318,23 @@
     .hint { font-size: 12px; color: #64748b; display: block; margin-top: 4px; }
     .readonly-field { background: #f1f5f9; color: #334155; cursor: not-allowed; }
     .modal-card.modal-sm { max-width: 420px; }
+    .teach-table { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+    .teach-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .03em;
+                      color: #64748b; border-bottom: 1px solid #e2e8f0; padding: 6px 8px; }
+    .teach-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+    .teach-table tr:last-child td { border-bottom: none; }
+    .teach-table select { width: 100%; padding: 6px 8px; font-size: 13px; }
+    .teach-row-actions { width: 90px; text-align: right; }
 </style>
 
-<script>
+<script th:inline="javascript">
+var ALL_CLASSES = /*[[${classes}]]*/ [];
+var ALL_SUBJECTS = /*[[${subjects}]]*/ [];
+
 function showAddModal() {
     document.getElementById('userModal').style.display = 'flex';
     clearTeacherSelections();
     toggleTeacherFields();
-    var classField = document.getElementById('studentClass');
-    if (classField && classField.readOnly) {
-        document.getElementById('assignedClasses').value = classField.value;
-    }
 }
 
 function closeModal() {
@@ -334,7 +342,76 @@ function closeModal() {
     document.getElementById('registerBtn').disabled = false;
 }
 
-var teachPairs = [];
+function optionHtml(list, selected, placeholder) {
+    var html = '';
+    if (placeholder) html += '<option value="">' + placeholder + '</option>';
+    for (var i = 0; i < list.length; i++) {
+        html += '<option value="' + list[i] + '"' + (list[i] === selected ? ' selected' : '') + '>' + list[i] + '</option>';
+    }
+    return html;
+}
+
+function teachRowHtml(prefix, cls, subj) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td><select class="teach-row-class">' + optionHtml(ALL_CLASSES, cls || '', 'Select class') + '</select></td>' +
+        '<td><select class="teach-row-subject">' + optionHtml(ALL_SUBJECTS, subj || '', 'Select subject') + '</select></td>' +
+        '<td class="teach-row-actions"><button type="button" class="btn btn-danger btn-sm" onclick="removeTeachRow(\'' + prefix + '\', this)">Remove</button></td>';
+    tr.querySelector('.teach-row-class').addEventListener('change', function() { collectTeachRows(prefix); });
+    tr.querySelector('.teach-row-subject').addEventListener('change', function() { collectTeachRows(prefix); });
+    return tr;
+}
+
+function addTeachRow(prefix) {
+    var body = document.getElementById(prefix + 'TeachTableBody');
+    body.appendChild(teachRowHtml(prefix, '', ''));
+    collectTeachRows(prefix);
+}
+
+function removeTeachRow(prefix, btn) {
+    var body = document.getElementById(prefix + 'TeachTableBody');
+    body.removeChild(btn.closest('tr'));
+    collectTeachRows(prefix);
+}
+
+/** Reads the editable table and writes the aligned class/subject lists into the
+ *  hidden inputs that are actually submitted. */
+function collectTeachRows(prefix) {
+    var body = document.getElementById(prefix + 'TeachTableBody');
+    var classes = [];
+    var subjects = [];
+    var rows = body.querySelectorAll('tr');
+    for (var i = 0; i < rows.length; i++) {
+        var cls = rows[i].querySelector('.teach-row-class').value;
+        var subj = rows[i].querySelector('.teach-row-subject').value;
+        if (cls && subj) {
+            classes.push(cls);
+            subjects.push(subj);
+        }
+    }
+    var prefix2 = (prefix === 'add') ? 'teacher' : 'editTeacher';
+    document.getElementById(prefix2 + 'Subjects').value = subjects.join(', ');
+    document.getElementById(prefix2 + 'Classes').value = classes.join(', ');
+}
+
+/** Fills the editable table from comma-separated class/subject lists. Pairs by index,
+ *  cyclically wrapping the shorter list so misaligned data still shows every class
+ *  and subject (e.g. 3 classes with 2 subjects). */
+function renderTeachRows(prefix, classList, subjectList) {
+    var body = document.getElementById(prefix + 'TeachTableBody');
+    body.innerHTML = '';
+    var clsArr = classList ? classList.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+    var subjArr = subjectList ? subjectList.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : [];
+    if (clsArr.length === 0 && subjArr.length === 0) {
+        body.appendChild(teachRowHtml(prefix, '', ''));
+        collectTeachRows(prefix);
+        return;
+    }
+    var n = Math.max(clsArr.length, subjArr.length);
+    for (var i = 0; i < n; i++) {
+        body.appendChild(teachRowHtml(prefix, clsArr[i % clsArr.length] || '', subjArr[i % subjArr.length] || ''));
+    }
+    collectTeachRows(prefix);
+}
 
 function toggleTeacherFields() {
     var roleSelect = document.getElementById('role');
@@ -347,23 +424,27 @@ function toggleTeacherFields() {
     for (var i = 0; i < studentClassFields.length; i++) {
         studentClassFields[i].style.display = (role === 'student') ? 'block' : 'none';
     }
-    var hiddenInput = document.getElementById('assignedClasses');
+
+    var teacherSubjects = document.getElementById('teacherSubjects');
+    var teacherClasses = document.getElementById('teacherClasses');
+    var studentClass = document.getElementById('studentClass');
+    var studentSubjects = document.getElementById('studentSubjects');
     if (role === 'student') {
-        hiddenInput.setAttribute('name', 'assignedClasses');
-        var subjectEl = document.getElementById('subject');
-        if (subjectEl) subjectEl.removeAttribute('name');
-        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').setAttribute('name', 'subjects');
+        if (teacherSubjects) teacherSubjects.removeAttribute('name');
+        if (teacherClasses) teacherClasses.removeAttribute('name');
+        if (studentClass) studentClass.setAttribute('name', 'assignedClasses');
+        if (studentSubjects) studentSubjects.setAttribute('name', 'subjects');
         wireStudentSubjectChecks('studentSubjectsGrid', 'studentSubjects');
     } else if (role === 'teacher') {
-        hiddenInput.setAttribute('name', 'assignedClasses');
-        var subjectEl2 = document.getElementById('subject');
-        if (subjectEl2) subjectEl2.setAttribute('name', 'subject');
-        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
+        if (teacherSubjects) teacherSubjects.setAttribute('name', 'subject');
+        if (teacherClasses) teacherClasses.setAttribute('name', 'assignedClasses');
+        if (studentClass) studentClass.removeAttribute('name');
+        if (studentSubjects) studentSubjects.removeAttribute('name');
     } else {
-        hiddenInput.removeAttribute('name');
-        var subjectEl3 = document.getElementById('subject');
-        if (subjectEl3) subjectEl3.removeAttribute('name');
-        if (document.getElementById('studentSubjects')) document.getElementById('studentSubjects').removeAttribute('name');
+        if (teacherSubjects) teacherSubjects.removeAttribute('name');
+        if (teacherClasses) teacherClasses.removeAttribute('name');
+        if (studentClass) studentClass.removeAttribute('name');
+        if (studentSubjects) studentSubjects.removeAttribute('name');
     }
 }
 
@@ -407,55 +488,18 @@ function precheckStudentSubjects(gridId, hiddenId, commaList) {
 }
 
 function clearTeacherSelections() {
-    teachPairs = [];
-    renderTeachPairs();
-    document.getElementById('subject').value = '';
-    document.getElementById('assignedClasses').value = '';
+    var teacherSubjects = document.getElementById('teacherSubjects');
+    var teacherClasses = document.getElementById('teacherClasses');
     document.getElementById('classTeacherOf').value = '';
+    renderTeachRows('add',
+            teacherClasses ? teacherClasses.value : '',
+            teacherSubjects ? teacherSubjects.value : '');
     var studentSelect = document.getElementById('studentClass');
     if (studentSelect && !studentSelect.readOnly) studentSelect.value = '';
     var admissionInput = document.getElementById('studentAdmissionNo');
     if (admissionInput) admissionInput.value = '';
     precheckStudentSubjects('studentSubjectsGrid', 'studentSubjects', '');
 }
-
-function updateStudentClassInput() {
-    document.getElementById('assignedClasses').value = document.getElementById('studentClass').value;
-}
-
-function addTeachPair() {
-    var cls = document.getElementById('teachClass').value;
-    var subj = document.getElementById('teachSubject').value;
-    if (!cls || !subj) return;
-    teachPairs.push({ class: cls, subject: subj });
-    document.getElementById('teachClass').value = '';
-    document.getElementById('teachSubject').value = '';
-    renderTeachPairs();
-}
-
-function removeTeachPair(index) {
-    teachPairs.splice(index, 1);
-    renderTeachPairs();
-}
-
-function renderTeachPairs() {
-    var list = document.getElementById('teachList');
-    list.innerHTML = '';
-    var seen = {};
-    for (var i = 0; i < teachPairs.length; i++) {
-        var li = document.createElement('li');
-        li.innerHTML = '<span>' + teachPairs[i].class + ' — ' + teachPairs[i].subject + '</span>' +
-            '<button type="button" class="remove-btn" onclick="removeTeachPair(' + i + ')">&times;</button>';
-        list.appendChild(li);
-        seen[teachPairs[i].class] = true;
-    }
-    var classes = Object.keys(seen).join(', ');
-    var subjects = teachPairs.map(function(p) { return p.subject; }).join(', ');
-    document.getElementById('assignedClasses').value = classes;
-    document.getElementById('subject').value = subjects;
-}
-
-var editTeachPairs = [];
 
 function editUser(btn) {
     var id = btn.getAttribute('data-id');
@@ -486,67 +530,35 @@ function editUser(btn) {
     var studentSubjects = btn.getAttribute('data-subjects') || '';
     precheckStudentSubjects('editStudentSubjectsGrid', 'editStudentSubjects', studentSubjects);
 
-    var subjectArr = subject ? subject.split(', ').filter(function(s) { return s.trim(); }) : [];
-    var classArr = classes ? classes.split(', ').filter(function(c) { return c.trim(); }) : [];
-    editTeachPairs = [];
-    for (var i = 0; i < Math.max(subjectArr.length, classArr.length); i++) {
-        if (classArr[i] && subjectArr[i]) {
-            editTeachPairs.push({ class: classArr[i], subject: subjectArr[i] });
-        }
-    }
-    renderEditTeachPairs();
+    renderTeachRows('edit', classes, subject);
 
-    document.getElementById('editSubject').value = subject;
-    document.getElementById('editAssignedClasses').value = classes;
-    var editHidden = document.getElementById('editAssignedClasses');
     var editStudentSelect = document.getElementById('editStudentClass');
-    if (role === 'student') {
-        editHidden.setAttribute('name', 'assignedClasses');
-        document.getElementById('editSubject').removeAttribute('name');
-    } else if (role === 'teacher') {
-        editHidden.setAttribute('name', 'assignedClasses');
-        document.getElementById('editSubject').setAttribute('name', 'subject');
-    } else {
-        editHidden.removeAttribute('name');
-        document.getElementById('editSubject').removeAttribute('name');
-    }
     if (editStudentSelect) {
-        editStudentSelect.value = classes || '';
+        editStudentSelect.value = classes.split(',').map(function(s) { return s.trim(); })[0] || '';
+    }
+
+    var editTeacherSubjects = document.getElementById('editTeacherSubjects');
+    var editTeacherClasses = document.getElementById('editTeacherClasses');
+    var editStudentClass = document.getElementById('editStudentClass');
+    var editStudentSubjects = document.getElementById('editStudentSubjects');
+    if (role === 'student') {
+        if (editTeacherSubjects) editTeacherSubjects.removeAttribute('name');
+        if (editTeacherClasses) editTeacherClasses.removeAttribute('name');
+        if (editStudentClass) editStudentClass.setAttribute('name', 'assignedClasses');
+        if (editStudentSubjects) editStudentSubjects.setAttribute('name', 'subjects');
+    } else if (role === 'teacher') {
+        if (editTeacherSubjects) editTeacherSubjects.setAttribute('name', 'subject');
+        if (editTeacherClasses) editTeacherClasses.setAttribute('name', 'assignedClasses');
+        if (editStudentClass) editStudentClass.removeAttribute('name');
+        if (editStudentSubjects) editStudentSubjects.removeAttribute('name');
+    } else {
+        if (editTeacherSubjects) editTeacherSubjects.removeAttribute('name');
+        if (editTeacherClasses) editTeacherClasses.removeAttribute('name');
+        if (editStudentClass) editStudentClass.removeAttribute('name');
+        if (editStudentSubjects) editStudentSubjects.removeAttribute('name');
     }
 
     document.getElementById('editUserModal').style.display = 'flex';
-}
-
-function addEditTeachPair() {
-    var cls = document.getElementById('editTeachClass').value;
-    var subj = document.getElementById('editTeachSubject').value;
-    if (!cls || !subj) return;
-    editTeachPairs.push({ class: cls, subject: subj });
-    document.getElementById('editTeachClass').value = '';
-    document.getElementById('editTeachSubject').value = '';
-    renderEditTeachPairs();
-}
-
-function removeEditTeachPair(index) {
-    editTeachPairs.splice(index, 1);
-    renderEditTeachPairs();
-}
-
-function renderEditTeachPairs() {
-    var list = document.getElementById('editTeachList');
-    list.innerHTML = '';
-    var seen = {};
-    for (var i = 0; i < editTeachPairs.length; i++) {
-        var li = document.createElement('li');
-        li.innerHTML = '<span>' + editTeachPairs[i].class + ' — ' + editTeachPairs[i].subject + '</span>' +
-            '<button type="button" class="remove-btn" onclick="removeEditTeachPair(' + i + ')">&times;</button>';
-        list.appendChild(li);
-        seen[editTeachPairs[i].class] = true;
-    }
-    var classes = Object.keys(seen).join(', ');
-    var subjects = editTeachPairs.map(function(p) { return p.subject; }).join(', ');
-    document.getElementById('editAssignedClasses').value = classes;
-    document.getElementById('editSubject').value = subjects;
 }
 
 function closeEditModal() {
