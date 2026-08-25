@@ -1,39 +1,26 @@
 package com.eduadmin.school.controller;
 
 import com.eduadmin.school.model.*;
-import com.eduadmin.school.repository.LeaveRequestRepository;
-import com.eduadmin.school.repository.StudentRepository;
-import com.eduadmin.school.repository.UserRepository;
+import com.eduadmin.school.service.LeaveService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Controller
 @RequestMapping("/attendance/leave")
 public class LeaveController {
 
-    private final LeaveRequestRepository leaveRepository;
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
+    private final LeaveService leaveService;
 
-    public LeaveController(LeaveRequestRepository leaveRepository,
-                           StudentRepository studentRepository,
-                           UserRepository userRepository) {
-        this.leaveRepository = leaveRepository;
-        this.studentRepository = studentRepository;
-        this.userRepository = userRepository;
+    public LeaveController(LeaveService leaveService) {
+        this.leaveService = leaveService;
     }
 
-    /** Lists leave requests: students/teachers see their own, admins see all. */
     @GetMapping
     public String list(@RequestParam(required = false) String status, Model model) {
         User user = currentUser();
@@ -49,46 +36,21 @@ public class LeaveController {
                 status = null;
             }
         }
-        LeaveStatus filterFinal = filter;
 
-        List<LeaveRequest> requests = new ArrayList<>();
-        if (user.getRole() == Role.admin) {
-            requests = filter != null
-                    ? leaveRepository.findByStatusOrderByAppliedAtDesc(filter)
-                    : leaveRepository.findAllByOrderByAppliedAtDesc();
-        } else if (user.getRole() == Role.student) {
-            Student me = studentRepository.findByUser(user).orElse(null);
-            requests = me != null ? leaveRepository.findByStudentOrderByAppliedAtDesc(me) : List.of();
-        } else {
-            // Teachers see their own requests plus (if they are a class teacher)
-            // the leave requests of the students in their class.
-            List<LeaveRequest> own = leaveRepository.findByApplicantOrderByAppliedAtDesc(user);
-            List<LeaveRequest> classStudents = classTeacherOf(user) != null
-                    ? leaveRepository.findByStudentInOrderByAppliedAtDesc(studentsOfClass(classTeacherOf(user)))
-                    : List.of();
-            requests = new ArrayList<>();
-            requests.addAll(classStudents);
-            requests.addAll(own);
-            requests.sort(Comparator.comparing(LeaveRequest::getAppliedAt, Comparator.reverseOrder()));
-            if (filterFinal != null) {
-                requests = requests.stream().filter(r -> r.getStatus() == filterFinal).toList();
-            }
-        }
+        List<LeaveRequest> requests = leaveService.getLeaveRequests(user, filter);
 
         model.addAttribute("requests", requests);
         model.addAttribute("statusFilter", status);
         model.addAttribute("statuses", LeaveStatus.values());
         model.addAttribute("isAdmin", user.getRole() == Role.admin);
         model.addAttribute("isStudent", user.getRole() == Role.student);
-        model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && classTeacherOf(user) != null);
+        model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && leaveService.classTeacherOf(user) != null);
         model.addAttribute("currentUser", user);
         model.addAttribute("activePage", "leave");
         return "leave";
     }
 
-    /** Applies for leave. Students apply for their linked student record, teachers for themselves. */
     @PostMapping("/apply")
-    @Transactional
     public String apply(@RequestParam String fromDate,
                         @RequestParam String toDate,
                         @RequestParam String reason,
@@ -101,62 +63,30 @@ public class LeaveController {
             return "redirect:/attendance/leave";
         }
 
-        List<String> errors = new ArrayList<>();
-        LocalDate from = null;
-        LocalDate to = null;
-        try {
-            from = LocalDate.parse(fromDate);
-        } catch (Exception e) {
-            errors.add("Please choose a valid from date.");
-        }
-        try {
-            to = LocalDate.parse(toDate);
-        } catch (Exception e) {
-            errors.add("Please choose a valid to date.");
-        }
-        if (from != null && to != null && to.isBefore(from)) {
-            errors.add("The to date must be on or after the from date.");
-        }
-        String cleanReason = reason != null ? reason.trim() : "";
-        if (cleanReason.isEmpty()) {
-            errors.add("Please provide a reason for the leave.");
-        }
+        List<String> errors = leaveService.validateLeaveApplication(fromDate, toDate, reason);
 
         if (!errors.isEmpty()) {
-            List<LeaveRequest> requests = listFor(user);
+            List<LeaveRequest> requests = leaveService.getLeaveRequestsForUser(user);
             model.addAttribute("requests", requests);
             model.addAttribute("statusFilter", null);
             model.addAttribute("statuses", LeaveStatus.values());
             model.addAttribute("isAdmin", false);
             model.addAttribute("isStudent", user.getRole() == Role.student);
-            model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && classTeacherOf(user) != null);
+            model.addAttribute("isClassTeacher", user.getRole() == Role.teacher && leaveService.classTeacherOf(user) != null);
             model.addAttribute("currentUser", user);
             model.addAttribute("errorMessages", errors);
             model.addAttribute("fromDate", fromDate);
             model.addAttribute("toDate", toDate);
-            model.addAttribute("reason", cleanReason);
+            model.addAttribute("reason", reason != null ? reason.trim() : "");
             model.addAttribute("activePage", "leave");
             return "leave";
         }
 
-        LeaveRequest request = new LeaveRequest();
-        request.setApplicant(user);
-        if (user.getRole() == Role.student) {
-            studentRepository.findByUser(user).ifPresent(request::setStudent);
-        }
-        request.setFromDate(from);
-        request.setToDate(to);
-        request.setReason(cleanReason);
-        request.setStatus(LeaveStatus.pending);
-        request.setAppliedAt(LocalDateTime.now());
-        leaveRepository.save(request);
+        leaveService.applyLeave(user, fromDate, toDate, reason);
         return "redirect:/attendance/leave?saved=true";
     }
 
-    /** Approves or rejects a pending request. Admins approve anything; class
-     *  teachers may approve/reject only leave from students of their own class. */
     @PostMapping("/{id}/review")
-    @Transactional
     public String review(@PathVariable Long id,
                          @RequestParam String action,
                          @RequestParam(required = false) String reviewComment) {
@@ -164,59 +94,13 @@ public class LeaveController {
         if (user == null) {
             return "redirect:/attendance/leave";
         }
-        LeaveRequest request = leaveRepository.findById(id).orElse(null);
-        if (request == null || request.getStatus() != LeaveStatus.pending) {
-            return "redirect:/attendance/leave";
-        }
-        boolean isAdmin = user.getRole() == Role.admin;
-        boolean isClassTeacher = user.getRole() == Role.teacher && classTeacherOf(user) != null
-                && request.getStudent() != null
-                && request.getStudent().getClassDisplay().equals(classTeacherOf(user));
-        if (!isAdmin && !isClassTeacher) {
-            return "redirect:/attendance/leave";
-        }
-        if ("approve".equals(action)) {
-            request.setStatus(LeaveStatus.approved);
-        } else if ("reject".equals(action)) {
-            request.setStatus(LeaveStatus.rejected);
-        } else {
-            return "redirect:/attendance/leave";
-        }
-        request.setReviewComment(reviewComment != null ? reviewComment.trim() : "");
-        request.setReviewedBy(user);
-        request.setReviewedAt(LocalDateTime.now());
-        leaveRepository.save(request);
+        leaveService.reviewLeaveRequest(id, action, reviewComment, user);
         return "redirect:/attendance/leave";
-    }
-
-    private List<LeaveRequest> listFor(User user) {
-        if (user.getRole() == Role.student) {
-            Student me = studentRepository.findByUser(user).orElse(null);
-            return me != null ? leaveRepository.findByStudentOrderByAppliedAtDesc(me) : List.of();
-        }
-        return leaveRepository.findByApplicantOrderByAppliedAtDesc(user);
-    }
-
-    /** The class the teacher is class teacher of, or null. */
-    private String classTeacherOf(User user) {
-        if (user == null || user.getRole() != Role.teacher) return null;
-        String cls = user.getClassTeacherOf();
-        return (cls != null && !cls.isBlank()) ? cls.trim() : null;
-    }
-
-    /** Students of a class in "6-A" form, sorted by name. */
-    private List<Student> studentsOfClass(String cls) {
-        String[] parts = cls.split("-", 2);
-        String className = parts[0].trim();
-        String section = parts.length > 1 ? parts[1].trim() : "";
-        return section.isBlank()
-                ? studentRepository.findByClassNameOrderByLastNameAsc(className)
-                : studentRepository.findByClassNameAndSectionOrderByLastNameAsc(className, section);
     }
 
     private User currentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) return null;
-        return userRepository.findByEmail(auth.getName()).orElse(null);
+        return leaveService.getUserByEmail(auth.getName());
     }
 }

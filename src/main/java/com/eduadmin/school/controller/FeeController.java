@@ -1,11 +1,7 @@
 package com.eduadmin.school.controller;
 
 import com.eduadmin.school.model.*;
-import com.eduadmin.school.repository.FeeRepository;
-import com.eduadmin.school.repository.FeeStructureRepository;
-import com.eduadmin.school.repository.PaymentRepository;
-import com.eduadmin.school.repository.StudentRepository;
-import com.eduadmin.school.repository.UserRepository;
+import com.eduadmin.school.service.FeeService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -19,20 +15,10 @@ import java.util.List;
 @RequestMapping("/fees")
 public class FeeController {
 
-    private final FeeRepository feeRepository;
-    private final FeeStructureRepository feeStructureRepository;
-    private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
-    private final PaymentRepository paymentRepository;
+    private final FeeService feeService;
 
-    public FeeController(FeeRepository feeRepository, StudentRepository studentRepository,
-                         UserRepository userRepository, PaymentRepository paymentRepository,
-                         FeeStructureRepository feeStructureRepository) {
-        this.feeRepository = feeRepository;
-        this.studentRepository = studentRepository;
-        this.userRepository = userRepository;
-        this.paymentRepository = paymentRepository;
-        this.feeStructureRepository = feeStructureRepository;
+    public FeeController(FeeService feeService) {
+        this.feeService = feeService;
     }
 
     @GetMapping
@@ -44,56 +30,36 @@ public class FeeController {
         if (user != null && user.getRole() == Role.student) {
             return studentView(model, user);
         }
-        // Teachers have no access to the fees module.
         if (user != null && user.getRole() == Role.teacher) {
             return "redirect:/";
         }
         return adminView(model, studentId, classFilter, name);
     }
 
-    /** Admin/ledger view: all students, filters, add/pay. */
     private String adminView(Model model, Long studentId, String classFilter, String name) {
-        String nameQuery = (name != null && !name.isBlank()) ? name.trim() : "";
-        String classQuery = (classFilter != null && !classFilter.isBlank()) ? classFilter.trim() : "";
-        Long studentIdQuery = (studentId != null) ? studentId : 0L;
-        List<Fee> fees = feeRepository.search(studentIdQuery, classQuery, nameQuery);
+        List<Fee> fees = feeService.searchFees(studentId, classFilter, name);
         model.addAttribute("fees", fees);
-        model.addAttribute("students", studentRepository.findAllByOrderByLastNameAsc());
-        model.addAttribute("classes", allClasses());
+        model.addAttribute("students", feeService.getAllStudents());
+        model.addAttribute("classes", feeService.getAllClasses());
         model.addAttribute("selectedStudentId", studentId);
-        model.addAttribute("selectedClass", classQuery);
-        model.addAttribute("name", nameQuery);
+        model.addAttribute("selectedClass", classFilter != null && !classFilter.isBlank() ? classFilter.trim() : "");
+        model.addAttribute("name", name != null && !name.isBlank() ? name.trim() : "");
         model.addAttribute("activePage", "fees");
         return "fees";
     }
 
-    /** All classes in the fee structure, plus any other classes that have students. */
-    private List<String> allClasses() {
-        return feeStructureRepository.findAllByOrderByClassNameAscTermAsc().stream()
-                .map(FeeStructure::getClassName)
-                .distinct()
-                .toList();
-    }
-
-    /** Student view: only their own fees, payment history, and pay option. */
     private String studentView(Model model, User user) {
-        Student student = studentRepository.findByUser(user).orElse(null);
+        Student student = feeService.getStudentByUser(user);
         if (student == null) {
             model.addAttribute("activePage", "fees");
             return "my-fees";
         }
-        List<Fee> myFees = feeRepository.findByStudent(student);
-        List<Payment> payments = paymentRepository.findByFeeInOrderByPaidAtDesc(myFees);
-        List<FeeStructure> structure = feeStructureRepository.findByClassNameOrderByTermAsc(student.getClassDisplay());
-        double totalPaid = myFees.stream().mapToDouble(Fee::getAmountPaid).sum();
+        List<Fee> myFees = feeService.getStudentFees(student);
+        List<Payment> payments = feeService.getPaymentsForFees(myFees);
+        List<FeeStructure> structure = feeService.getFeeStructureForClass(student.getClassDisplay());
+        double totalPaid = feeService.getTotalPaid(myFees);
         LocalDate today = LocalDate.now();
-        // "Remaining to pay" = outstanding fees that are already due (overdue or due
-        // today/earlier). Future terms are not counted here.
-        double remaining = myFees.stream()
-                .filter(f -> f.getOutstanding() > 0)
-                .filter(f -> f.getDueDate() == null || !f.getDueDate().isAfter(today))
-                .mapToDouble(Fee::getOutstanding)
-                .sum();
+        double remaining = feeService.getRemainingToPay(myFees, today);
 
         model.addAttribute("student", student);
         model.addAttribute("myFees", myFees);
@@ -115,58 +81,20 @@ public class FeeController {
         if (user != null && user.getRole() != Role.admin) {
             return "redirect:/fees";
         }
-        if (studentId != null && term != null && !term.isBlank()
-                && amountDue != null && amountDue > 0) {
-            Student student = studentRepository.findById(studentId).orElse(null);
-            if (student != null) {
-                Fee fee = new Fee();
-                fee.setStudent(student);
-                fee.setTerm(term.trim());
-                fee.setAmountDue(amountDue);
-                double paid = amountPaid != null ? Math.max(amountPaid, 0.0) : 0.0;
-                fee.setAmountPaid(paid);
-                fee.setDueDate(dueDate != null && !dueDate.isBlank() ? LocalDate.parse(dueDate) : null);
-                fee.recomputeStatus();
-                feeRepository.save(fee);
-                if (paid > 0) {
-                    paymentRepository.save(new Payment(fee, paid));
-                }
-            }
-        }
+        feeService.createFee(studentId, term, amountDue, amountPaid, dueDate);
         return "redirect:/fees";
     }
 
     @PostMapping("/{id}/pay")
     public String pay(@PathVariable Long id, @RequestParam Double amount) {
-        if (amount == null || amount <= 0) {
-            return "redirect:/fees";
-        }
-        Fee fee = feeRepository.findById(id).orElse(null);
-        if (fee == null) {
-            return "redirect:/fees";
-        }
-
         User user = currentUser();
-        if (user != null && user.getRole() == Role.student) {
-            // Students can only pay their own fee records.
-            Student me = studentRepository.findByUser(user).orElse(null);
-            if (me == null || !me.getId().equals(fee.getStudent().getId())) {
-                return "redirect:/fees";
-            }
-        } else if (user != null && user.getRole() != Role.admin) {
-            return "redirect:/fees";
-        }
-
-        fee.setAmountPaid(fee.getAmountPaid() + amount);
-        fee.recomputeStatus();
-        feeRepository.save(fee);
-        paymentRepository.save(new Payment(fee, amount));
+        feeService.payFee(id, amount, user);
         return "redirect:/fees";
     }
 
     private User currentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getName() == null) return null;
-        return userRepository.findByEmail(auth.getName()).orElse(null);
+        return feeService.getUserByEmail(auth.getName());
     }
 }
