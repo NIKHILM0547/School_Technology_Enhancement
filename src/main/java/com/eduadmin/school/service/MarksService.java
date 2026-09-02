@@ -305,13 +305,6 @@ public class MarksService {
         return subjects;
     }
 
-    private List<Student> teacherVisibleStudents(User user) {
-        Set<String> classes = teacherClasses(user);
-        return studentRepository.findAllByOrderByLastNameAsc().stream()
-                .filter(s -> classes.contains(s.getClassDisplay()))
-                .toList();
-    }
-
     private boolean canEdit(User user, Student student, String subject) {
         if (user.getClassTeacherOf() != null && !user.getClassTeacherOf().isBlank()
                 && student.getClassDisplay().equals(user.getClassTeacherOf().trim())) {
